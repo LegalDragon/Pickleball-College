@@ -120,7 +120,8 @@ public class AssetService : IAssetService
                 return false;
             }
 
-            var basePath = _environment.WebRootPath ?? _options.BasePath;
+            // Use configured BasePath as primary storage location
+            var basePath = !string.IsNullOrEmpty(_options.BasePath) ? _options.BasePath : _environment.WebRootPath ?? "wwwroot";
             var filePath = Path.Combine(basePath, fileUrl.TrimStart('/'));
 
             if (File.Exists(filePath))
@@ -141,7 +142,8 @@ public class AssetService : IAssetService
 
     public string GetUploadPath(string category)
     {
-        var basePath = _environment.WebRootPath ?? _options.BasePath;
+        // Use configured BasePath as primary storage location
+        var basePath = !string.IsNullOrEmpty(_options.BasePath) ? _options.BasePath : _environment.WebRootPath ?? "wwwroot";
         var categoryOptions = _options.GetCategory(category);
         var folder = categoryOptions?.Folder ?? category;
         return Path.Combine(basePath, _options.UploadsFolder, folder);
