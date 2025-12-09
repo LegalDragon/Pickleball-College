@@ -5,15 +5,7 @@ namespace Pickleball.College.Models.Entities;
 public class Asset
 {
     [Key]
-    public int Id { get; set; }
-
-    [Required]
-    [MaxLength(36)]
-    public string AssetKey { get; set; } = Guid.NewGuid().ToString("N");
-
-    [Required]
-    [MaxLength(500)]
-    public string FilePath { get; set; } = string.Empty;
+    public Guid FileId { get; set; } = Guid.NewGuid();
 
     [Required]
     [MaxLength(255)]
@@ -27,8 +19,24 @@ public class Asset
 
     public long FileSize { get; set; }
 
+    /// <summary>
+    /// Storage provider (e.g., "local", "azure", "s3")
+    /// </summary>
     [MaxLength(50)]
-    public string Category { get; set; } = string.Empty;
+    public string StorageProvider { get; set; } = "local";
+
+    /// <summary>
+    /// Full path to the file in storage
+    /// </summary>
+    [Required]
+    [MaxLength(500)]
+    public string StoragePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Folder/category for the asset (e.g., "avatars", "videos", "theme")
+    /// </summary>
+    [MaxLength(100)]
+    public string Folder { get; set; } = string.Empty;
 
     /// <summary>
     /// The type of object this asset is associated with (e.g., "User", "ThemeSettings", "Material")
@@ -41,7 +49,7 @@ public class Asset
     /// </summary>
     public int? ObjectId { get; set; }
 
-    public int? UploadedByUserId { get; set; }
+    public int? UploadedBy { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

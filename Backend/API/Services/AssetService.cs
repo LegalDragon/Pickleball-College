@@ -8,28 +8,27 @@ namespace Pickleball.College.Services;
 
 public interface IAssetService
 {
-    Task<AssetUploadResult> UploadFileAsync(IFormFile file, string category, int? userId = null, string? objectType = null, int? objectId = null, string? customFolder = null);
+    Task<AssetUploadResult> UploadFileAsync(IFormFile file, string folder, int? uploadedBy = null, string? objectType = null, int? objectId = null);
     Task<bool> DeleteFileAsync(string assetUrl);
-    Task<Asset?> GetAssetByKeyAsync(string assetKey);
+    Task<Asset?> GetAssetByIdAsync(Guid fileId);
     Task<List<Asset>> GetAssetsByObjectAsync(string objectType, int objectId);
-    Task<(Stream? stream, string? contentType, string? fileName)> GetAssetStreamAsync(string assetKey);
-    string GetUploadPath(string category);
-    string GetAssetUrl(string assetKey);
-    string GetRelativePathFromUrl(string url);
-    ValidationResult ValidateFile(IFormFile file, string category);
-    CategoryOptions? GetCategoryOptions(string category);
+    Task<(Stream? stream, string? contentType, string? fileName)> GetAssetStreamAsync(Guid fileId);
+    string GetUploadPath(string folder);
+    string GetAssetUrl(Guid fileId);
+    ValidationResult ValidateFile(IFormFile file, string folder);
+    CategoryOptions? GetCategoryOptions(string folder);
 }
 
 public class AssetUploadResult
 {
     public bool Success { get; set; }
+    public Guid? FileId { get; set; }
     public string? Url { get; set; }
-    public string? AssetKey { get; set; }
     public string? FileName { get; set; }
     public string? OriginalFileName { get; set; }
     public long FileSize { get; set; }
     public string? ContentType { get; set; }
-    public string? Category { get; set; }
+    public string? Folder { get; set; }
     public string? ErrorMessage { get; set; }
 }
 
@@ -61,12 +60,12 @@ public class AssetService : IAssetService
         _logger = logger;
     }
 
-    public async Task<AssetUploadResult> UploadFileAsync(IFormFile file, string category, int? userId = null, string? objectType = null, int? objectId = null, string? customFolder = null)
+    public async Task<AssetUploadResult> UploadFileAsync(IFormFile file, string folder, int? uploadedBy = null, string? objectType = null, int? objectId = null)
     {
         try
         {
             // Validate the file
-            var validation = ValidateFile(file, category);
+            var validation = ValidateFile(file, folder);
             if (!validation.IsValid)
             {
                 return new AssetUploadResult
@@ -77,17 +76,17 @@ public class AssetService : IAssetService
             }
 
             // Get upload path
-            var uploadPath = GetUploadPath(customFolder ?? category);
+            var uploadPath = GetUploadPath(folder);
             Directory.CreateDirectory(uploadPath);
 
-            // Generate unique filename and asset key
-            var assetKey = Guid.NewGuid().ToString("N");
+            // Generate unique filename
+            var fileId = Guid.NewGuid();
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-            var fileName = $"{assetKey}{extension}";
-            var filePath = Path.Combine(uploadPath, fileName);
+            var fileName = $"{fileId}{extension}";
+            var storagePath = Path.Combine(uploadPath, fileName);
 
             // Save the file
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            using (var stream = new FileStream(storagePath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);
             }
@@ -95,42 +94,43 @@ public class AssetService : IAssetService
             // Create asset record in database
             var asset = new Asset
             {
-                AssetKey = assetKey,
-                FilePath = filePath,
+                FileId = fileId,
                 FileName = fileName,
                 OriginalFileName = file.FileName,
                 ContentType = file.ContentType,
                 FileSize = file.Length,
-                Category = category,
+                StorageProvider = _options.Provider,
+                StoragePath = storagePath,
+                Folder = folder,
                 ObjectType = objectType,
                 ObjectId = objectId,
-                UploadedByUserId = userId,
-                CreatedAt = DateTime.UtcNow
+                UploadedBy = uploadedBy,
+                CreatedAt = DateTime.UtcNow,
+                IsDeleted = false
             };
 
             _context.Assets.Add(asset);
             await _context.SaveChangesAsync();
 
-            var assetUrl = GetAssetUrl(assetKey);
+            _logger.LogInformation("Asset created successfully: FileId={FileId}, FileName={FileName}, ObjectType={ObjectType}, ObjectId={ObjectId}",
+                asset.FileId, asset.FileName, objectType ?? "null", objectId?.ToString() ?? "null");
 
-            _logger.LogInformation("File uploaded successfully: {AssetKey} -> {FilePath} (ObjectType: {ObjectType}, ObjectId: {ObjectId})",
-                assetKey, filePath, objectType ?? "null", objectId?.ToString() ?? "null");
-
+            // Return the asset URL as /api/assets/{id}
             return new AssetUploadResult
             {
                 Success = true,
-                Url = assetUrl,
-                AssetKey = assetKey,
-                FileName = fileName,
-                OriginalFileName = file.FileName,
-                FileSize = file.Length,
-                ContentType = file.ContentType,
-                Category = category
+                FileId = asset.FileId,
+                Url = GetAssetUrl(asset.FileId),
+                FileName = asset.FileName,
+                OriginalFileName = asset.OriginalFileName,
+                FileSize = asset.FileSize,
+                ContentType = asset.ContentType,
+                Folder = folder
             };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error uploading file for category {Category}", category);
+            _logger.LogError(ex, "Error uploading file for folder {Folder}", folder);
             return new AssetUploadResult
             {
                 Success = false,
@@ -154,33 +154,33 @@ public class AssetService : IAssetService
             if (string.IsNullOrEmpty(assetUrl))
                 return false;
 
-            // Extract asset key from URL
-            var assetKey = ExtractAssetKeyFromUrl(assetUrl);
-            if (string.IsNullOrEmpty(assetKey))
+            // Extract file ID from URL
+            var fileId = ExtractFileIdFromUrl(assetUrl);
+            if (fileId == null)
             {
-                _logger.LogWarning("Could not extract asset key from URL: {Url}", assetUrl);
+                _logger.LogWarning("Could not extract file ID from URL: {Url}", assetUrl);
                 return false;
             }
 
             // Find asset in database
-            var asset = await _context.Assets.FirstOrDefaultAsync(a => a.AssetKey == assetKey && !a.IsDeleted);
+            var asset = await _context.Assets.FirstOrDefaultAsync(a => a.FileId == fileId.Value && !a.IsDeleted);
             if (asset == null)
             {
-                _logger.LogWarning("Asset not found: {AssetKey}", assetKey);
+                _logger.LogWarning("Asset not found: {FileId}", fileId);
                 return false;
             }
 
             // Delete physical file
-            if (File.Exists(asset.FilePath))
+            if (File.Exists(asset.StoragePath))
             {
-                File.Delete(asset.FilePath);
+                File.Delete(asset.StoragePath);
             }
 
             // Mark as deleted in database (soft delete)
             asset.IsDeleted = true;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Asset deleted: {AssetKey}", assetKey);
+            _logger.LogInformation("Asset deleted: {FileId}", fileId);
             return true;
         }
         catch (Exception ex)
@@ -190,84 +190,72 @@ public class AssetService : IAssetService
         }
     }
 
-    public async Task<Asset?> GetAssetByKeyAsync(string assetKey)
+    public async Task<Asset?> GetAssetByIdAsync(Guid fileId)
     {
-        return await _context.Assets.FirstOrDefaultAsync(a => a.AssetKey == assetKey && !a.IsDeleted);
+        return await _context.Assets.FirstOrDefaultAsync(a => a.FileId == fileId && !a.IsDeleted);
     }
 
-    public async Task<(Stream? stream, string? contentType, string? fileName)> GetAssetStreamAsync(string assetKey)
+    public async Task<(Stream? stream, string? contentType, string? fileName)> GetAssetStreamAsync(Guid fileId)
     {
-        var asset = await GetAssetByKeyAsync(assetKey);
+        var asset = await GetAssetByIdAsync(fileId);
         if (asset == null)
             return (null, null, null);
 
-        if (!File.Exists(asset.FilePath))
+        if (!File.Exists(asset.StoragePath))
         {
-            _logger.LogWarning("Asset file not found on disk: {FilePath}", asset.FilePath);
+            _logger.LogWarning("Asset file not found on disk: {StoragePath}", asset.StoragePath);
             return (null, null, null);
         }
 
-        var stream = new FileStream(asset.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var stream = new FileStream(asset.StoragePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         return (stream, asset.ContentType, asset.OriginalFileName ?? asset.FileName);
     }
 
-    public string GetUploadPath(string category)
+    public string GetUploadPath(string folder)
     {
         // Use configured BasePath as primary storage location
         var basePath = !string.IsNullOrEmpty(_options.BasePath) ? _options.BasePath : _environment.WebRootPath ?? "wwwroot";
-        var categoryOptions = _options.GetCategory(category);
-        var folder = categoryOptions?.Folder ?? category;
-        return Path.Combine(basePath, _options.UploadsFolder, folder);
+        var categoryOptions = _options.GetCategory(folder);
+        var folderName = categoryOptions?.Folder ?? folder;
+        return Path.Combine(basePath, _options.UploadsFolder, folderName);
     }
 
-    public string GetAssetUrl(string assetKey)
+    public string GetAssetUrl(Guid fileId)
     {
         // Return API endpoint URL for serving assets
         if (!string.IsNullOrEmpty(_options.AssetBaseUrl))
         {
-            return $"{_options.AssetBaseUrl.TrimEnd('/')}/api/assets/{assetKey}";
+            return $"{_options.AssetBaseUrl.TrimEnd('/')}/api/assets/{fileId}";
         }
-        return $"/api/assets/{assetKey}";
+        return $"/api/assets/{fileId}";
     }
 
-    public string GetRelativePathFromUrl(string url)
-    {
-        if (string.IsNullOrEmpty(url))
-            return url;
-
-        // Extract asset key from API URL
-        var assetKey = ExtractAssetKeyFromUrl(url);
-        if (!string.IsNullOrEmpty(assetKey))
-        {
-            return $"/api/assets/{assetKey}";
-        }
-
-        return url;
-    }
-
-    private string? ExtractAssetKeyFromUrl(string url)
+    private Guid? ExtractFileIdFromUrl(string url)
     {
         if (string.IsNullOrEmpty(url))
             return null;
 
         // Handle both full URLs and relative paths
-        // Format: /api/assets/{assetKey} or https://assets.example.com/api/assets/{assetKey}
+        // Format: /api/assets/{fileId} or https://assets.example.com/api/assets/{fileId}
         var pattern = "/api/assets/";
         var index = url.LastIndexOf(pattern, StringComparison.OrdinalIgnoreCase);
         if (index >= 0)
         {
-            var assetKey = url.Substring(index + pattern.Length);
+            var idString = url.Substring(index + pattern.Length);
             // Remove any query string or trailing slash
-            var queryIndex = assetKey.IndexOf('?');
+            var queryIndex = idString.IndexOf('?');
             if (queryIndex >= 0)
-                assetKey = assetKey.Substring(0, queryIndex);
-            return assetKey.TrimEnd('/');
+                idString = idString.Substring(0, queryIndex);
+            idString = idString.TrimEnd('/');
+
+            if (Guid.TryParse(idString, out var fileId))
+                return fileId;
         }
 
         return null;
     }
 
-    public ValidationResult ValidateFile(IFormFile file, string category)
+    public ValidationResult ValidateFile(IFormFile file, string folder)
     {
         if (file == null || file.Length == 0)
         {
@@ -275,7 +263,7 @@ public class AssetService : IAssetService
         }
 
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var categoryOptions = _options.GetCategory(category);
+        var categoryOptions = _options.GetCategory(folder);
 
         if (categoryOptions != null)
         {
@@ -283,7 +271,7 @@ public class AssetService : IAssetService
             if (!categoryOptions.AllowedExtensions.Contains(extension))
             {
                 return ValidationResult.Invalid(
-                    $"Invalid file type. Allowed types for {category}: {string.Join(", ", categoryOptions.AllowedExtensions)}");
+                    $"Invalid file type. Allowed types for {folder}: {string.Join(", ", categoryOptions.AllowedExtensions)}");
             }
 
             if (file.Length > categoryOptions.MaxSizeBytes)
@@ -331,8 +319,8 @@ public class AssetService : IAssetService
         return ValidationResult.Valid();
     }
 
-    public CategoryOptions? GetCategoryOptions(string category)
+    public CategoryOptions? GetCategoryOptions(string folder)
     {
-        return _options.GetCategory(category);
+        return _options.GetCategory(folder);
     }
 }

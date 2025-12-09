@@ -4,6 +4,7 @@ public class FileStorageOptions
 {
     public const string SectionName = "FileStorage";
 
+    public string Provider { get; set; } = "local";
     public string BasePath { get; set; } = "wwwroot";
     public string AssetBaseUrl { get; set; } = string.Empty;
     public string UploadsFolder { get; set; } = "uploads";

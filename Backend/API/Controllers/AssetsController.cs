@@ -34,21 +34,21 @@ public class AssetsController : ControllerBase
     }
 
     /// <summary>
-    /// Get an asset by its key (serves the file)
+    /// Get an asset by its ID (serves the file)
     /// </summary>
-    /// <param name="assetKey">The unique asset key</param>
+    /// <param name="fileId">The unique file ID (GUID)</param>
     [AllowAnonymous]
-    [HttpGet("{assetKey}")]
-    public async Task<IActionResult> GetAsset(string assetKey)
+    [HttpGet("{fileId:guid}")]
+    public async Task<IActionResult> GetAsset(Guid fileId)
     {
         try
         {
-            if (string.IsNullOrEmpty(assetKey))
+            if (fileId == Guid.Empty)
             {
-                return BadRequest("Asset key is required");
+                return BadRequest("Valid file ID is required");
             }
 
-            var (stream, contentType, fileName) = await _assetService.GetAssetStreamAsync(assetKey);
+            var (stream, contentType, fileName) = await _assetService.GetAssetStreamAsync(fileId);
 
             if (stream == null)
             {
@@ -60,7 +60,7 @@ public class AssetsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving asset: {AssetKey}", assetKey);
+            _logger.LogError(ex, "Error retrieving asset: {FileId}", fileId);
             return StatusCode(500, "An error occurred while retrieving the asset");
         }
     }
@@ -69,13 +69,13 @@ public class AssetsController : ControllerBase
     /// Upload a single file
     /// </summary>
     /// <param name="file">The file to upload</param>
-    /// <param name="category">Category: avatars, videos, theme, materials, or custom folder name</param>
+    /// <param name="folder">Folder: avatars, videos, theme, materials, or custom folder name</param>
     /// <param name="objectType">Optional: The type of object this asset is associated with (e.g., "User", "Material")</param>
     /// <param name="objectId">Optional: The ID of the object this asset is associated with</param>
     [HttpPost("upload")]
     public async Task<ActionResult<ApiResponse<AssetUploadResponse>>> UploadFile(
         IFormFile file,
-        [FromQuery] string category = "image",
+        [FromQuery] string folder = "image",
         [FromQuery] string? objectType = null,
         [FromQuery] int? objectId = null)
     {
@@ -91,7 +91,7 @@ public class AssetsController : ControllerBase
                 });
             }
 
-            var result = await _assetService.UploadFileAsync(file, category, userId, objectType, objectId);
+            var result = await _assetService.UploadFileAsync(file, folder, userId, objectType, objectId);
 
             if (!result.Success)
             {
@@ -107,7 +107,7 @@ public class AssetsController : ControllerBase
             {
                 UserId = userId.Value,
                 ActivityType = "AssetUploaded",
-                Description = $"Uploaded {category} file: {file.FileName}"
+                Description = $"Uploaded {folder} file: {file.FileName}"
             };
             _context.ActivityLogs.Add(log);
             await _context.SaveChangesAsync();
@@ -118,12 +118,13 @@ public class AssetsController : ControllerBase
                 Message = "File uploaded successfully",
                 Data = new AssetUploadResponse
                 {
+                    FileId = result.FileId!.Value,
                     Url = result.Url!,
                     FileName = result.FileName!,
                     OriginalFileName = result.OriginalFileName!,
                     FileSize = result.FileSize,
                     ContentType = result.ContentType!,
-                    Category = result.Category!
+                    Folder = result.Folder!
                 }
             });
         }
@@ -142,13 +143,13 @@ public class AssetsController : ControllerBase
     /// Upload multiple files
     /// </summary>
     /// <param name="files">The files to upload</param>
-    /// <param name="category">Category: avatars, videos, theme, materials, or custom folder name</param>
+    /// <param name="folder">Folder: avatars, videos, theme, materials, or custom folder name</param>
     /// <param name="objectType">Optional: The type of object these assets are associated with</param>
     /// <param name="objectId">Optional: The ID of the object these assets are associated with</param>
     [HttpPost("upload-multiple")]
     public async Task<ActionResult<ApiResponse<List<AssetUploadResponse>>>> UploadMultipleFiles(
         List<IFormFile> files,
-        [FromQuery] string category = "image",
+        [FromQuery] string folder = "image",
         [FromQuery] string? objectType = null,
         [FromQuery] int? objectId = null)
     {
@@ -187,18 +188,19 @@ public class AssetsController : ControllerBase
 
             foreach (var file in files)
             {
-                var result = await _assetService.UploadFileAsync(file, category, userId, objectType, objectId);
+                var result = await _assetService.UploadFileAsync(file, folder, userId, objectType, objectId);
 
                 if (result.Success)
                 {
                     uploadedFiles.Add(new AssetUploadResponse
                     {
+                        FileId = result.FileId!.Value,
                         Url = result.Url!,
                         FileName = result.FileName!,
                         OriginalFileName = result.OriginalFileName!,
                         FileSize = result.FileSize,
                         ContentType = result.ContentType!,
-                        Category = result.Category!
+                        Folder = result.Folder!
                     });
                 }
                 else
@@ -310,21 +312,21 @@ public class AssetsController : ControllerBase
     }
 
     /// <summary>
-    /// Get allowed file types by category
+    /// Get allowed file types by folder
     /// </summary>
     [AllowAnonymous]
     [HttpGet("allowed-types")]
     public ActionResult<ApiResponse<Dictionary<string, AllowedFileTypeInfo>>> GetAllowedTypes()
     {
-        var categories = new[] { "avatars", "videos", "theme", "materials" };
+        var folders = new[] { "avatars", "videos", "theme", "materials" };
         var result = new Dictionary<string, AllowedFileTypeInfo>();
 
-        foreach (var category in categories)
+        foreach (var folder in folders)
         {
-            var options = _assetService.GetCategoryOptions(category);
+            var options = _assetService.GetCategoryOptions(folder);
             if (options != null)
             {
-                result[category] = new AllowedFileTypeInfo
+                result[folder] = new AllowedFileTypeInfo
                 {
                     Extensions = options.AllowedExtensions.ToList(),
                     MaxSizeBytes = options.MaxSizeBytes,
