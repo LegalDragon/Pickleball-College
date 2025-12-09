@@ -23,10 +23,10 @@ public class ThemeController : ControllerBase
         _logger = logger;
     }
 
-    private Guid? GetCurrentUserId()
+    private int? GetCurrentUserId()
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return Guid.TryParse(userIdClaim, out var userId) ? userId : null;
+        return int.TryParse(userIdClaim, out var userId) ? userId : null;
     }
 
     // GET: api/Theme/active (Public - no auth required)

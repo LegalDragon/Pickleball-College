@@ -4,10 +4,10 @@ namespace Pickleball.College.Models.Entities;
 
 public class TrainingSession
 {
-    public Guid Id { get; set; }
-    public Guid CoachId { get; set; }
-    public Guid StudentId { get; set; }
-    public Guid? MaterialId { get; set; }
+    public int Id { get; set; }
+    public int CoachId { get; set; }
+    public int StudentId { get; set; }
+    public int? MaterialId { get; set; }
     
     [Required]
     public string SessionType { get; set; } = "Online";

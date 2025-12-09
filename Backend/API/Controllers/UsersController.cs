@@ -24,10 +24,10 @@ public class UsersController : ControllerBase
         _logger = logger;
     }
 
-    private Guid? GetCurrentUserId()
+    private int? GetCurrentUserId()
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return Guid.TryParse(userIdClaim, out var userId) ? userId : null;
+        return int.TryParse(userIdClaim, out var userId) ? userId : null;
     }
 
     // GET: api/Users/profile
@@ -393,7 +393,7 @@ public class UsersController : ControllerBase
     // PUT: api/Users/{id} (Admin only)
     [Authorize(Roles = "Admin")]
     [HttpPut("{id}")]
-    public async Task<ActionResult<ApiResponse<UserProfileDto>>> AdminEditUser(Guid id, [FromBody] AdminUpdateUserRequest request)
+    public async Task<ActionResult<ApiResponse<UserProfileDto>>> AdminEditUser(int id, [FromBody] AdminUpdateUserRequest request)
     {
         try
         {

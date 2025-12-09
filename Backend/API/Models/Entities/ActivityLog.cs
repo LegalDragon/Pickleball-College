@@ -8,7 +8,7 @@ public class ActivityLog
     [Key]
     public int LogId { get; set; }
 
-    public Guid? UserId { get; set; }
+    public int? UserId { get; set; }
 
     [Required]
     [MaxLength(100)]
