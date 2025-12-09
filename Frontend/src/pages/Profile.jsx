@@ -279,8 +279,13 @@ const Profile = () => {
   const handleSavePickleballInfo = async (data) => {
     setSavingPickleballInfo(true)
     try {
-      await userApi.updateProfile(data)
-      updateUser({ ...user, ...data })
+      // Handle yearsPlaying - convert empty string to null, string to number
+      const profileData = {
+        ...data,
+        yearsPlaying: data.yearsPlaying ? parseInt(data.yearsPlaying, 10) : null
+      }
+      await userApi.updateProfile(profileData)
+      updateUser({ ...user, ...profileData })
       setIsEditingPickleballInfo(false)
     } catch (error) {
       console.error('Pickleball info update error:', error)
