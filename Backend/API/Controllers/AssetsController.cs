@@ -70,10 +70,14 @@ public class AssetsController : ControllerBase
     /// </summary>
     /// <param name="file">The file to upload</param>
     /// <param name="category">Category: avatars, videos, theme, materials, or custom folder name</param>
+    /// <param name="objectType">Optional: The type of object this asset is associated with (e.g., "User", "Material")</param>
+    /// <param name="objectId">Optional: The ID of the object this asset is associated with</param>
     [HttpPost("upload")]
     public async Task<ActionResult<ApiResponse<AssetUploadResponse>>> UploadFile(
         IFormFile file,
-        [FromQuery] string category = "image")
+        [FromQuery] string category = "image",
+        [FromQuery] string? objectType = null,
+        [FromQuery] int? objectId = null)
     {
         try
         {
@@ -87,7 +91,7 @@ public class AssetsController : ControllerBase
                 });
             }
 
-            var result = await _assetService.UploadFileAsync(file, category, userId);
+            var result = await _assetService.UploadFileAsync(file, category, userId, objectType, objectId);
 
             if (!result.Success)
             {
@@ -137,10 +141,16 @@ public class AssetsController : ControllerBase
     /// <summary>
     /// Upload multiple files
     /// </summary>
+    /// <param name="files">The files to upload</param>
+    /// <param name="category">Category: avatars, videos, theme, materials, or custom folder name</param>
+    /// <param name="objectType">Optional: The type of object these assets are associated with</param>
+    /// <param name="objectId">Optional: The ID of the object these assets are associated with</param>
     [HttpPost("upload-multiple")]
     public async Task<ActionResult<ApiResponse<List<AssetUploadResponse>>>> UploadMultipleFiles(
         List<IFormFile> files,
-        [FromQuery] string category = "image")
+        [FromQuery] string category = "image",
+        [FromQuery] string? objectType = null,
+        [FromQuery] int? objectId = null)
     {
         try
         {
@@ -177,7 +187,7 @@ public class AssetsController : ControllerBase
 
             foreach (var file in files)
             {
-                var result = await _assetService.UploadFileAsync(file, category, userId);
+                var result = await _assetService.UploadFileAsync(file, category, userId, objectType, objectId);
 
                 if (result.Success)
                 {

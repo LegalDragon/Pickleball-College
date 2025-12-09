@@ -30,6 +30,17 @@ public class Asset
     [MaxLength(50)]
     public string Category { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The type of object this asset is associated with (e.g., "User", "ThemeSettings", "Material")
+    /// </summary>
+    [MaxLength(100)]
+    public string? ObjectType { get; set; }
+
+    /// <summary>
+    /// The ID of the object this asset is associated with
+    /// </summary>
+    public int? ObjectId { get; set; }
+
     public int? UploadedByUserId { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

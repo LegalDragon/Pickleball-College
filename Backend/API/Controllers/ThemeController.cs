@@ -267,7 +267,7 @@ public class ThemeController : ControllerBase
             var currentUserId = GetCurrentUserId();
 
             // Upload new logo using asset service
-            var result = await _assetService.UploadFileAsync(file, "theme", currentUserId);
+            var result = await _assetService.UploadFileAsync(file, "theme", currentUserId, "ThemeSettings", theme?.ThemeId);
             if (!result.Success)
             {
                 return BadRequest(new ApiResponse<UploadResponse>
@@ -349,7 +349,7 @@ public class ThemeController : ControllerBase
             var currentUserId = GetCurrentUserId();
 
             // Upload new favicon using asset service
-            var result = await _assetService.UploadFileAsync(file, "theme", currentUserId);
+            var result = await _assetService.UploadFileAsync(file, "theme", currentUserId, "ThemeSettings", theme?.ThemeId);
             if (!result.Success)
             {
                 return BadRequest(new ApiResponse<UploadResponse>

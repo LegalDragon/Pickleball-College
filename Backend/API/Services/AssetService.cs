@@ -8,9 +8,10 @@ namespace Pickleball.College.Services;
 
 public interface IAssetService
 {
-    Task<AssetUploadResult> UploadFileAsync(IFormFile file, string category, int? userId = null, string? customFolder = null);
+    Task<AssetUploadResult> UploadFileAsync(IFormFile file, string category, int? userId = null, string? objectType = null, int? objectId = null, string? customFolder = null);
     Task<bool> DeleteFileAsync(string assetUrl);
     Task<Asset?> GetAssetByKeyAsync(string assetKey);
+    Task<List<Asset>> GetAssetsByObjectAsync(string objectType, int objectId);
     Task<(Stream? stream, string? contentType, string? fileName)> GetAssetStreamAsync(string assetKey);
     string GetUploadPath(string category);
     string GetAssetUrl(string assetKey);
@@ -60,7 +61,7 @@ public class AssetService : IAssetService
         _logger = logger;
     }
 
-    public async Task<AssetUploadResult> UploadFileAsync(IFormFile file, string category, int? userId = null, string? customFolder = null)
+    public async Task<AssetUploadResult> UploadFileAsync(IFormFile file, string category, int? userId = null, string? objectType = null, int? objectId = null, string? customFolder = null)
     {
         try
         {
@@ -101,6 +102,8 @@ public class AssetService : IAssetService
                 ContentType = file.ContentType,
                 FileSize = file.Length,
                 Category = category,
+                ObjectType = objectType,
+                ObjectId = objectId,
                 UploadedByUserId = userId,
                 CreatedAt = DateTime.UtcNow
             };
@@ -110,7 +113,8 @@ public class AssetService : IAssetService
 
             var assetUrl = GetAssetUrl(assetKey);
 
-            _logger.LogInformation("File uploaded successfully: {AssetKey} -> {FilePath}", assetKey, filePath);
+            _logger.LogInformation("File uploaded successfully: {AssetKey} -> {FilePath} (ObjectType: {ObjectType}, ObjectId: {ObjectId})",
+                assetKey, filePath, objectType ?? "null", objectId?.ToString() ?? "null");
 
             return new AssetUploadResult
             {
@@ -133,6 +137,14 @@ public class AssetService : IAssetService
                 ErrorMessage = "An error occurred while uploading the file"
             };
         }
+    }
+
+    public async Task<List<Asset>> GetAssetsByObjectAsync(string objectType, int objectId)
+    {
+        return await _context.Assets
+            .Where(a => a.ObjectType == objectType && a.ObjectId == objectId && !a.IsDeleted)
+            .OrderByDescending(a => a.CreatedAt)
+            .ToListAsync();
     }
 
     public async Task<bool> DeleteFileAsync(string assetUrl)
