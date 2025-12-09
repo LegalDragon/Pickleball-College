@@ -63,18 +63,7 @@ public class UsersController : ControllerBase
                 });
             }
 
-            var profileDto = new UserProfileDto
-            {
-                Id = user.Id,
-                Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Role = user.Role,
-                Bio = user.Bio,
-                ProfileImageUrl = user.ProfileImageUrl,
-                CreatedAt = user.CreatedAt,
-                IsActive = user.IsActive
-            };
+            var profileDto = MapToProfileDto(user);
 
             return Ok(new ApiResponse<UserProfileDto>
             {
@@ -119,13 +108,51 @@ public class UsersController : ControllerBase
                 });
             }
 
-            // Update fields
+            // Update basic fields
             if (!string.IsNullOrEmpty(request.FirstName))
                 user.FirstName = request.FirstName;
             if (!string.IsNullOrEmpty(request.LastName))
                 user.LastName = request.LastName;
             if (request.Bio != null)
                 user.Bio = request.Bio;
+
+            // Update basic info fields
+            if (request.Gender != null)
+                user.Gender = request.Gender;
+            if (request.DateOfBirth.HasValue)
+                user.DateOfBirth = request.DateOfBirth;
+            if (request.Phone != null)
+                user.Phone = request.Phone;
+            if (request.Address != null)
+                user.Address = request.Address;
+            if (request.City != null)
+                user.City = request.City;
+            if (request.State != null)
+                user.State = request.State;
+            if (request.ZipCode != null)
+                user.ZipCode = request.ZipCode;
+            if (request.Country != null)
+                user.Country = request.Country;
+
+            // Update pickleball info fields
+            if (request.Handedness != null)
+                user.Handedness = request.Handedness;
+            if (request.ExperienceLevel != null)
+                user.ExperienceLevel = request.ExperienceLevel;
+            if (request.PlayingStyle != null)
+                user.PlayingStyle = request.PlayingStyle;
+            if (request.PaddleBrand != null)
+                user.PaddleBrand = request.PaddleBrand;
+            if (request.PaddleModel != null)
+                user.PaddleModel = request.PaddleModel;
+            if (request.YearsPlaying.HasValue)
+                user.YearsPlaying = request.YearsPlaying;
+            if (request.TournamentLevel != null)
+                user.TournamentLevel = request.TournamentLevel;
+            if (request.FavoriteShot != null)
+                user.FavoriteShot = request.FavoriteShot;
+            if (request.IntroVideo != null)
+                user.IntroVideo = request.IntroVideo;
 
             user.UpdatedAt = DateTime.UtcNow;
 
@@ -141,18 +168,7 @@ public class UsersController : ControllerBase
             _context.ActivityLogs.Add(log);
             await _context.SaveChangesAsync();
 
-            var profileDto = new UserProfileDto
-            {
-                Id = user.Id,
-                Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Role = user.Role,
-                Bio = user.Bio,
-                ProfileImageUrl = user.ProfileImageUrl,
-                CreatedAt = user.CreatedAt,
-                IsActive = user.IsActive
-            };
+            var profileDto = MapToProfileDto(user);
 
             return Ok(new ApiResponse<UserProfileDto>
             {
@@ -340,6 +356,23 @@ public class UsersController : ControllerBase
                     Role = u.Role,
                     Bio = u.Bio,
                     ProfileImageUrl = u.ProfileImageUrl,
+                    Gender = u.Gender,
+                    DateOfBirth = u.DateOfBirth,
+                    Phone = u.Phone,
+                    Address = u.Address,
+                    City = u.City,
+                    State = u.State,
+                    ZipCode = u.ZipCode,
+                    Country = u.Country,
+                    Handedness = u.Handedness,
+                    ExperienceLevel = u.ExperienceLevel,
+                    PlayingStyle = u.PlayingStyle,
+                    PaddleBrand = u.PaddleBrand,
+                    PaddleModel = u.PaddleModel,
+                    YearsPlaying = u.YearsPlaying,
+                    TournamentLevel = u.TournamentLevel,
+                    FavoriteShot = u.FavoriteShot,
+                    IntroVideo = u.IntroVideo,
                     CreatedAt = u.CreatedAt,
                     IsActive = u.IsActive
                 })
@@ -409,18 +442,7 @@ public class UsersController : ControllerBase
                 await _context.SaveChangesAsync();
             }
 
-            var profileDto = new UserProfileDto
-            {
-                Id = user.Id,
-                Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Role = user.Role,
-                Bio = user.Bio,
-                ProfileImageUrl = user.ProfileImageUrl,
-                CreatedAt = user.CreatedAt,
-                IsActive = user.IsActive
-            };
+            var profileDto = MapToProfileDto(user);
 
             return Ok(new ApiResponse<UserProfileDto>
             {
@@ -438,5 +460,39 @@ public class UsersController : ControllerBase
                 Message = "An error occurred while updating user"
             });
         }
+    }
+
+    // Helper method to map User entity to UserProfileDto
+    private static UserProfileDto MapToProfileDto(User user)
+    {
+        return new UserProfileDto
+        {
+            Id = user.Id,
+            Email = user.Email,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Role = user.Role,
+            Bio = user.Bio,
+            ProfileImageUrl = user.ProfileImageUrl,
+            Gender = user.Gender,
+            DateOfBirth = user.DateOfBirth,
+            Phone = user.Phone,
+            Address = user.Address,
+            City = user.City,
+            State = user.State,
+            ZipCode = user.ZipCode,
+            Country = user.Country,
+            Handedness = user.Handedness,
+            ExperienceLevel = user.ExperienceLevel,
+            PlayingStyle = user.PlayingStyle,
+            PaddleBrand = user.PaddleBrand,
+            PaddleModel = user.PaddleModel,
+            YearsPlaying = user.YearsPlaying,
+            TournamentLevel = user.TournamentLevel,
+            FavoriteShot = user.FavoriteShot,
+            IntroVideo = user.IntroVideo,
+            CreatedAt = user.CreatedAt,
+            IsActive = user.IsActive
+        };
     }
 }
