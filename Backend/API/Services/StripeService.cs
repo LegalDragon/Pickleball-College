@@ -15,6 +15,11 @@ public class ApplicationDbContext : DbContext
     public DbSet<MaterialPurchase> MaterialPurchases { get; set; }
     public DbSet<TrainingSession> TrainingSessions { get; set; }
 
+    // Theme and Asset Management
+    public DbSet<ThemeSettings> ThemeSettings { get; set; }
+    public DbSet<ThemePreset> ThemePresets { get; set; }
+    public DbSet<ActivityLog> ActivityLogs { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
@@ -37,12 +42,12 @@ public class ApplicationDbContext : DbContext
         {
             entity.Property(ts => ts.SessionType).HasConversion<string>();
             entity.Property(ts => ts.Status).HasConversion<string>();
-            
+
             entity.HasOne(ts => ts.Coach)
                   .WithMany(u => u.CoachingSessions)
                   .HasForeignKey(ts => ts.CoachId)
                   .OnDelete(DeleteBehavior.Restrict);
-                  
+
             entity.HasOne(ts => ts.Student)
                   .WithMany(u => u.StudentSessions)
                   .HasForeignKey(ts => ts.StudentId)
@@ -55,7 +60,7 @@ public class ApplicationDbContext : DbContext
                   .WithMany(u => u.MaterialPurchases)
                   .HasForeignKey(mp => mp.StudentId)
                   .OnDelete(DeleteBehavior.Restrict);
-                  
+
             entity.HasOne(mp => mp.Material)
                   .WithMany(tm => tm.Purchases)
                   .HasForeignKey(mp => mp.MaterialId)
@@ -68,6 +73,28 @@ public class ApplicationDbContext : DbContext
                   .WithOne(u => u.CoachProfile)
                   .HasForeignKey<CoachProfile>(cp => cp.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Theme and Asset Management configuration
+        modelBuilder.Entity<ThemeSettings>(entity =>
+        {
+            entity.HasKey(t => t.ThemeId);
+            entity.Property(t => t.OrganizationName).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<ThemePreset>(entity =>
+        {
+            entity.HasKey(p => p.PresetId);
+            entity.Property(p => p.PresetName).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<ActivityLog>(entity =>
+        {
+            entity.HasKey(a => a.LogId);
+            entity.HasOne(a => a.User)
+                  .WithMany()
+                  .HasForeignKey(a => a.UserId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }
