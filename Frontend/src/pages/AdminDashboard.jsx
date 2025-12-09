@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { userApi, materialApi, getAssetUrl } from '../services/api'
+import { useTheme } from '../contexts/ThemeContext'
+import { userApi, materialApi, themeApi, getAssetUrl } from '../services/api'
 import {
   Users, BookOpen, Calendar, DollarSign, Search, Edit2, Trash2,
   ChevronLeft, ChevronRight, Filter, MoreVertical, Eye, X,
-  Shield, GraduationCap, User, CheckCircle, XCircle, Save
+  Shield, GraduationCap, User, CheckCircle, XCircle, Save,
+  Palette, Upload, RefreshCw, Image
 } from 'lucide-react'
 
 const AdminDashboard = () => {
   const { user } = useAuth()
+  const { theme: currentTheme, refreshTheme } = useTheme()
   const [activeTab, setActiveTab] = useState('users')
   const [loading, setLoading] = useState(false)
 
@@ -24,16 +27,26 @@ const AdminDashboard = () => {
   const [materials, setMaterials] = useState([])
   const [materialSearch, setMaterialSearch] = useState('')
 
+  // Theme state
+  const [themeSettings, setThemeSettings] = useState(null)
+  const [savingTheme, setSavingTheme] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [uploadingFavicon, setUploadingFavicon] = useState(false)
+  const logoInputRef = useRef(null)
+  const faviconInputRef = useRef(null)
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
-  // Fetch users
+  // Fetch data based on active tab
   useEffect(() => {
     if (activeTab === 'users') {
       fetchUsers()
     } else if (activeTab === 'materials') {
       fetchMaterials()
+    } else if (activeTab === 'theme') {
+      fetchTheme()
     }
   }, [activeTab])
 
@@ -64,6 +77,111 @@ const AdminDashboard = () => {
       console.error('Error fetching materials:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Fetch theme settings
+  const fetchTheme = async () => {
+    setLoading(true)
+    try {
+      const response = await themeApi.getCurrent()
+      if (response.success && response.data) {
+        setThemeSettings(response.data)
+      } else if (response && !response.success) {
+        // If no theme exists, use defaults
+        setThemeSettings(getDefaultTheme())
+      }
+    } catch (error) {
+      console.error('Error fetching theme:', error)
+      setThemeSettings(getDefaultTheme())
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Default theme values
+  const getDefaultTheme = () => ({
+    organizationName: 'Pickleball College',
+    primaryColor: '#047857',
+    primaryDarkColor: '#065f46',
+    primaryLightColor: '#d1fae5',
+    accentColor: '#f59e0b',
+    accentDarkColor: '#d97706',
+    accentLightColor: '#fef3c7',
+    successColor: '#10b981',
+    errorColor: '#ef4444',
+    warningColor: '#f59e0b',
+    infoColor: '#3b82f6',
+    textPrimaryColor: '#111827',
+    textSecondaryColor: '#6b7280',
+    backgroundColor: '#ffffff',
+    backgroundSecondaryColor: '#f3f4f6',
+    fontFamily: 'Inter, system-ui, sans-serif',
+    logoUrl: '',
+    faviconUrl: ''
+  })
+
+  // Handle theme field change
+  const handleThemeChange = (field, value) => {
+    setThemeSettings(prev => ({ ...prev, [field]: value }))
+  }
+
+  // Save theme settings
+  const handleSaveTheme = async () => {
+    setSavingTheme(true)
+    try {
+      const response = await themeApi.update(themeSettings)
+      if (response.success) {
+        await refreshTheme()
+        alert('Theme saved successfully!')
+      } else {
+        throw new Error(response.message || 'Failed to save theme')
+      }
+    } catch (error) {
+      console.error('Error saving theme:', error)
+      alert('Failed to save theme: ' + (error.message || 'Unknown error'))
+    } finally {
+      setSavingTheme(false)
+    }
+  }
+
+  // Handle logo upload
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingLogo(true)
+    try {
+      const response = await themeApi.uploadLogo(file)
+      if (response.success && response.data) {
+        setThemeSettings(prev => ({ ...prev, logoUrl: response.data.url }))
+        await refreshTheme()
+      }
+    } catch (error) {
+      console.error('Error uploading logo:', error)
+      alert('Failed to upload logo')
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  // Handle favicon upload
+  const handleFaviconUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingFavicon(true)
+    try {
+      const response = await themeApi.uploadFavicon(file)
+      if (response.success && response.data) {
+        setThemeSettings(prev => ({ ...prev, faviconUrl: response.data.url }))
+        await refreshTheme()
+      }
+    } catch (error) {
+      console.error('Error uploading favicon:', error)
+      alert('Failed to upload favicon')
+    } finally {
+      setUploadingFavicon(false)
     }
   }
 
@@ -142,6 +260,7 @@ const AdminDashboard = () => {
   const navItems = [
     { id: 'users', label: 'Users', icon: Users, count: users.length },
     { id: 'materials', label: 'Materials', icon: BookOpen, count: materials.length },
+    { id: 'theme', label: 'Theme', icon: Palette },
     { id: 'events', label: 'Events', icon: Calendar, count: 0, disabled: true },
     { id: 'transactions', label: 'Transactions', icon: DollarSign, count: 0, disabled: true }
   ]
@@ -445,6 +564,493 @@ const AdminDashboard = () => {
                   </>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Theme Tab */}
+          {activeTab === 'theme' && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Theme Management</h2>
+                <button
+                  onClick={handleSaveTheme}
+                  disabled={savingTheme || !themeSettings}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
+                >
+                  {savingTheme ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Theme
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {loading ? (
+                <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-4 text-gray-500">Loading theme settings...</p>
+                </div>
+              ) : themeSettings ? (
+                <div className="space-y-6">
+                  {/* Branding Section */}
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Image className="w-5 h-5 mr-2 text-blue-500" />
+                      Branding
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Organization Name
+                        </label>
+                        <input
+                          type="text"
+                          value={themeSettings.organizationName || ''}
+                          onChange={(e) => handleThemeChange('organizationName', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="Your Organization Name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Font Family
+                        </label>
+                        <select
+                          value={themeSettings.fontFamily || 'Inter, system-ui, sans-serif'}
+                          onChange={(e) => handleThemeChange('fontFamily', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="Inter, system-ui, sans-serif">Inter (Default)</option>
+                          <option value="Roboto, system-ui, sans-serif">Roboto</option>
+                          <option value="Open Sans, system-ui, sans-serif">Open Sans</option>
+                          <option value="Poppins, system-ui, sans-serif">Poppins</option>
+                          <option value="Montserrat, system-ui, sans-serif">Montserrat</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Logo and Favicon */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Logo</label>
+                        <div className="flex items-center space-x-4">
+                          <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden bg-gray-50">
+                            {themeSettings.logoUrl ? (
+                              <img
+                                src={getAssetUrl(themeSettings.logoUrl)}
+                                alt="Logo"
+                                className="max-w-full max-h-full object-contain"
+                              />
+                            ) : (
+                              <Image className="w-8 h-8 text-gray-400" />
+                            )}
+                          </div>
+                          <div>
+                            <input
+                              type="file"
+                              ref={logoInputRef}
+                              onChange={handleLogoUpload}
+                              accept="image/*"
+                              className="hidden"
+                            />
+                            <button
+                              onClick={() => logoInputRef.current?.click()}
+                              disabled={uploadingLogo}
+                              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center disabled:opacity-50"
+                            >
+                              {uploadingLogo ? (
+                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                              ) : (
+                                <Upload className="w-4 h-4 mr-2" />
+                              )}
+                              {uploadingLogo ? 'Uploading...' : 'Upload Logo'}
+                            </button>
+                            <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 2MB</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Favicon</label>
+                        <div className="flex items-center space-x-4">
+                          <div className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden bg-gray-50">
+                            {themeSettings.faviconUrl ? (
+                              <img
+                                src={getAssetUrl(themeSettings.faviconUrl)}
+                                alt="Favicon"
+                                className="max-w-full max-h-full object-contain"
+                              />
+                            ) : (
+                              <Image className="w-6 h-6 text-gray-400" />
+                            )}
+                          </div>
+                          <div>
+                            <input
+                              type="file"
+                              ref={faviconInputRef}
+                              onChange={handleFaviconUpload}
+                              accept="image/*,.ico"
+                              className="hidden"
+                            />
+                            <button
+                              onClick={() => faviconInputRef.current?.click()}
+                              disabled={uploadingFavicon}
+                              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center disabled:opacity-50"
+                            >
+                              {uploadingFavicon ? (
+                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                              ) : (
+                                <Upload className="w-4 h-4 mr-2" />
+                              )}
+                              {uploadingFavicon ? 'Uploading...' : 'Upload Favicon'}
+                            </button>
+                            <p className="text-xs text-gray-500 mt-1">ICO, PNG 32x32 or 64x64</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Colors Section */}
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Palette className="w-5 h-5 mr-2 text-purple-500" />
+                      Color Scheme
+                    </h3>
+
+                    {/* Primary Colors */}
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Primary Colors</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Primary</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="color"
+                              value={themeSettings.primaryColor || '#047857'}
+                              onChange={(e) => handleThemeChange('primaryColor', e.target.value)}
+                              className="w-10 h-10 rounded border cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={themeSettings.primaryColor || '#047857'}
+                              onChange={(e) => handleThemeChange('primaryColor', e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Primary Dark</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="color"
+                              value={themeSettings.primaryDarkColor || '#065f46'}
+                              onChange={(e) => handleThemeChange('primaryDarkColor', e.target.value)}
+                              className="w-10 h-10 rounded border cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={themeSettings.primaryDarkColor || '#065f46'}
+                              onChange={(e) => handleThemeChange('primaryDarkColor', e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Primary Light</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="color"
+                              value={themeSettings.primaryLightColor || '#d1fae5'}
+                              onChange={(e) => handleThemeChange('primaryLightColor', e.target.value)}
+                              className="w-10 h-10 rounded border cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={themeSettings.primaryLightColor || '#d1fae5'}
+                              onChange={(e) => handleThemeChange('primaryLightColor', e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Accent Colors */}
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Accent Colors</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Accent</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="color"
+                              value={themeSettings.accentColor || '#f59e0b'}
+                              onChange={(e) => handleThemeChange('accentColor', e.target.value)}
+                              className="w-10 h-10 rounded border cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={themeSettings.accentColor || '#f59e0b'}
+                              onChange={(e) => handleThemeChange('accentColor', e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Accent Dark</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="color"
+                              value={themeSettings.accentDarkColor || '#d97706'}
+                              onChange={(e) => handleThemeChange('accentDarkColor', e.target.value)}
+                              className="w-10 h-10 rounded border cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={themeSettings.accentDarkColor || '#d97706'}
+                              onChange={(e) => handleThemeChange('accentDarkColor', e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Accent Light</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="color"
+                              value={themeSettings.accentLightColor || '#fef3c7'}
+                              onChange={(e) => handleThemeChange('accentLightColor', e.target.value)}
+                              className="w-10 h-10 rounded border cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={themeSettings.accentLightColor || '#fef3c7'}
+                              onChange={(e) => handleThemeChange('accentLightColor', e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status Colors */}
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Status Colors</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Success</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="color"
+                              value={themeSettings.successColor || '#10b981'}
+                              onChange={(e) => handleThemeChange('successColor', e.target.value)}
+                              className="w-10 h-10 rounded border cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={themeSettings.successColor || '#10b981'}
+                              onChange={(e) => handleThemeChange('successColor', e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Error</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="color"
+                              value={themeSettings.errorColor || '#ef4444'}
+                              onChange={(e) => handleThemeChange('errorColor', e.target.value)}
+                              className="w-10 h-10 rounded border cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={themeSettings.errorColor || '#ef4444'}
+                              onChange={(e) => handleThemeChange('errorColor', e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Warning</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="color"
+                              value={themeSettings.warningColor || '#f59e0b'}
+                              onChange={(e) => handleThemeChange('warningColor', e.target.value)}
+                              className="w-10 h-10 rounded border cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={themeSettings.warningColor || '#f59e0b'}
+                              onChange={(e) => handleThemeChange('warningColor', e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Info</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="color"
+                              value={themeSettings.infoColor || '#3b82f6'}
+                              onChange={(e) => handleThemeChange('infoColor', e.target.value)}
+                              className="w-10 h-10 rounded border cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={themeSettings.infoColor || '#3b82f6'}
+                              onChange={(e) => handleThemeChange('infoColor', e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Background & Text Colors */}
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Background & Text</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Background</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="color"
+                              value={themeSettings.backgroundColor || '#ffffff'}
+                              onChange={(e) => handleThemeChange('backgroundColor', e.target.value)}
+                              className="w-10 h-10 rounded border cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={themeSettings.backgroundColor || '#ffffff'}
+                              onChange={(e) => handleThemeChange('backgroundColor', e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Background Secondary</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="color"
+                              value={themeSettings.backgroundSecondaryColor || '#f3f4f6'}
+                              onChange={(e) => handleThemeChange('backgroundSecondaryColor', e.target.value)}
+                              className="w-10 h-10 rounded border cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={themeSettings.backgroundSecondaryColor || '#f3f4f6'}
+                              onChange={(e) => handleThemeChange('backgroundSecondaryColor', e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Text Primary</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="color"
+                              value={themeSettings.textPrimaryColor || '#111827'}
+                              onChange={(e) => handleThemeChange('textPrimaryColor', e.target.value)}
+                              className="w-10 h-10 rounded border cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={themeSettings.textPrimaryColor || '#111827'}
+                              onChange={(e) => handleThemeChange('textPrimaryColor', e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Text Secondary</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="color"
+                              value={themeSettings.textSecondaryColor || '#6b7280'}
+                              onChange={(e) => handleThemeChange('textSecondaryColor', e.target.value)}
+                              className="w-10 h-10 rounded border cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={themeSettings.textSecondaryColor || '#6b7280'}
+                              onChange={(e) => handleThemeChange('textSecondaryColor', e.target.value)}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Preview Section */}
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Preview</h3>
+                    <div
+                      className="p-6 rounded-lg border"
+                      style={{ backgroundColor: themeSettings.backgroundColor }}
+                    >
+                      <div className="flex items-center mb-4">
+                        {themeSettings.logoUrl && (
+                          <img
+                            src={getAssetUrl(themeSettings.logoUrl)}
+                            alt="Logo Preview"
+                            className="h-10 mr-4"
+                          />
+                        )}
+                        <h4
+                          className="text-xl font-bold"
+                          style={{ color: themeSettings.textPrimaryColor }}
+                        >
+                          {themeSettings.organizationName || 'Organization Name'}
+                        </h4>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        <button
+                          className="px-4 py-2 rounded-lg text-white"
+                          style={{ backgroundColor: themeSettings.primaryColor }}
+                        >
+                          Primary Button
+                        </button>
+                        <button
+                          className="px-4 py-2 rounded-lg text-white"
+                          style={{ backgroundColor: themeSettings.accentColor }}
+                        >
+                          Accent Button
+                        </button>
+                        <button
+                          className="px-4 py-2 rounded-lg text-white"
+                          style={{ backgroundColor: themeSettings.successColor }}
+                        >
+                          Success
+                        </button>
+                        <button
+                          className="px-4 py-2 rounded-lg text-white"
+                          style={{ backgroundColor: themeSettings.errorColor }}
+                        >
+                          Error
+                        </button>
+                      </div>
+                      <p style={{ color: themeSettings.textSecondaryColor }}>
+                        This is how your theme colors will appear throughout the application.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+                  <Palette className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">Failed to load theme settings</p>
+                </div>
+              )}
             </div>
           )}
 
