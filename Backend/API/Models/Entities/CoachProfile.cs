@@ -2,8 +2,8 @@ namespace Pickleball.College.Models.Entities;
 
 public class CoachProfile
 {
-    public Guid Id { get; set; }
-    public Guid UserId { get; set; }
+    public int Id { get; set; }
+    public int UserId { get; set; }
     public decimal? HourlyRate { get; set; }
     public string? CertificationLevel { get; set; }
     public int? YearsExperience { get; set; }

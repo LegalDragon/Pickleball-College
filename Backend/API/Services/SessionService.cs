@@ -14,11 +14,10 @@ public class SessionService : ISessionService
         _context = context;
     }
 
-    public async Task<TrainingSession> ScheduleSessionAsync(SessionRequest request, Guid studentId)
+    public async Task<TrainingSession> ScheduleSessionAsync(SessionRequest request, int studentId)
     {
         var session = new TrainingSession
         {
-            Id = Guid.NewGuid(),
             CoachId = request.CoachId,
             StudentId = studentId,
             MaterialId = request.MaterialId,
@@ -42,7 +41,7 @@ public class SessionService : ISessionService
             .FirstOrDefaultAsync(s => s.Id == session.Id) ?? session;
     }
 
-    public async Task<List<TrainingSession>> GetCoachSessionsAsync(Guid coachId)
+    public async Task<List<TrainingSession>> GetCoachSessionsAsync(int coachId)
     {
         return await _context.TrainingSessions
             .Where(s => s.CoachId == coachId)
@@ -52,7 +51,7 @@ public class SessionService : ISessionService
             .ToListAsync();
     }
 
-    public async Task<List<TrainingSession>> GetStudentSessionsAsync(Guid studentId)
+    public async Task<List<TrainingSession>> GetStudentSessionsAsync(int studentId)
     {
         return await _context.TrainingSessions
             .Where(s => s.StudentId == studentId)
@@ -62,7 +61,7 @@ public class SessionService : ISessionService
             .ToListAsync();
     }
 
-    public async Task<bool> CancelSessionAsync(Guid sessionId, Guid userId)
+    public async Task<bool> CancelSessionAsync(int sessionId, int userId)
     {
         var session = await _context.TrainingSessions
             .FirstOrDefaultAsync(s => s.Id == sessionId && (s.CoachId == userId || s.StudentId == userId));

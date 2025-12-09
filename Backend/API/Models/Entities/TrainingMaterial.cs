@@ -4,8 +4,8 @@ namespace Pickleball.College.Models.Entities;
 
 public class TrainingMaterial
 {
-    public Guid Id { get; set; }
-    public Guid CoachId { get; set; }
+    public int Id { get; set; }
+    public int CoachId { get; set; }
     
     [Required]
     public string Title { get; set; } = string.Empty;

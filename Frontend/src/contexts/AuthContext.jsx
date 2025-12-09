@@ -54,11 +54,15 @@ export const AuthProvider = ({ children }) => {
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
       }
 
-      // Store user data
+      // Store user data (including profileImageUrl)
       if (userData) {
-        setUser(userData)
+        const userWithAvatar = {
+          ...userData,
+          profileImageUrl: userData.profileImageUrl || userData.ProfileImageUrl || null
+        }
+        setUser(userWithAvatar)
         setIsAuthenticated(true)
-        localStorage.setItem('pickleball_user', JSON.stringify(userData))
+        localStorage.setItem('pickleball_user', JSON.stringify(userWithAvatar))
       }
 
       return { success: true }
@@ -121,7 +125,8 @@ export const AuthProvider = ({ children }) => {
           email: userDataFromResponse.email || userData.email,
           firstName: userDataFromResponse.firstName || userDataFromResponse.first_name || userData.firstName,
           lastName: userDataFromResponse.lastName || userDataFromResponse.last_name || userData.lastName,
-          role: userDataFromResponse.role || userData.role || 'Student'
+          role: userDataFromResponse.role || userData.role || 'Student',
+          profileImageUrl: userDataFromResponse.profileImageUrl || userDataFromResponse.ProfileImageUrl || null
         }
 
         setUser(user)

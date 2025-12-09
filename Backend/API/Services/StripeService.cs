@@ -15,6 +15,15 @@ public class ApplicationDbContext : DbContext
     public DbSet<MaterialPurchase> MaterialPurchases { get; set; }
     public DbSet<TrainingSession> TrainingSessions { get; set; }
 
+    // Theme and Asset Management
+    public DbSet<ThemeSettings> ThemeSettings { get; set; }
+    public DbSet<ThemePreset> ThemePresets { get; set; }
+    public DbSet<ActivityLog> ActivityLogs { get; set; }
+    public DbSet<Asset> Assets { get; set; }
+
+    // Content Types for Materials
+    public DbSet<ContentType> ContentTypes { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
@@ -37,12 +46,12 @@ public class ApplicationDbContext : DbContext
         {
             entity.Property(ts => ts.SessionType).HasConversion<string>();
             entity.Property(ts => ts.Status).HasConversion<string>();
-            
+
             entity.HasOne(ts => ts.Coach)
                   .WithMany(u => u.CoachingSessions)
                   .HasForeignKey(ts => ts.CoachId)
                   .OnDelete(DeleteBehavior.Restrict);
-                  
+
             entity.HasOne(ts => ts.Student)
                   .WithMany(u => u.StudentSessions)
                   .HasForeignKey(ts => ts.StudentId)
@@ -55,7 +64,7 @@ public class ApplicationDbContext : DbContext
                   .WithMany(u => u.MaterialPurchases)
                   .HasForeignKey(mp => mp.StudentId)
                   .OnDelete(DeleteBehavior.Restrict);
-                  
+
             entity.HasOne(mp => mp.Material)
                   .WithMany(tm => tm.Purchases)
                   .HasForeignKey(mp => mp.MaterialId)
@@ -68,6 +77,105 @@ public class ApplicationDbContext : DbContext
                   .WithOne(u => u.CoachProfile)
                   .HasForeignKey<CoachProfile>(cp => cp.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Theme and Asset Management configuration
+        modelBuilder.Entity<ThemeSettings>(entity =>
+        {
+            entity.HasKey(t => t.ThemeId);
+            entity.Property(t => t.OrganizationName).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<ThemePreset>(entity =>
+        {
+            entity.HasKey(p => p.PresetId);
+            entity.Property(p => p.PresetName).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<ActivityLog>(entity =>
+        {
+            entity.HasKey(a => a.LogId);
+            entity.HasOne(a => a.User)
+                  .WithMany()
+                  .HasForeignKey(a => a.UserId)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Content Types configuration and seed data
+        modelBuilder.Entity<ContentType>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.HasIndex(c => c.Code).IsUnique();
+            entity.Property(c => c.Name).IsRequired().HasMaxLength(50);
+            entity.Property(c => c.Code).IsRequired().HasMaxLength(50);
+
+            entity.HasData(
+                new ContentType
+                {
+                    Id = 1,
+                    Name = "Video",
+                    Code = "Video",
+                    Icon = "Video",
+                    Prompt = "Upload a video file or paste a YouTube/TikTok link",
+                    AllowedExtensions = ".mp4,.mov,.avi,.wmv,.webm,.mkv",
+                    MaxFileSizeMB = 500,
+                    SortOrder = 1,
+                    IsActive = true,
+                    CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                },
+                new ContentType
+                {
+                    Id = 2,
+                    Name = "Image",
+                    Code = "Image",
+                    Icon = "Image",
+                    Prompt = "Upload an image file (PNG, JPG, WebP)",
+                    AllowedExtensions = ".jpg,.jpeg,.png,.gif,.webp,.svg",
+                    MaxFileSizeMB = 10,
+                    SortOrder = 2,
+                    IsActive = true,
+                    CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                },
+                new ContentType
+                {
+                    Id = 3,
+                    Name = "Document",
+                    Code = "Document",
+                    Icon = "FileText",
+                    Prompt = "Upload a document file (PDF, Word, PowerPoint)",
+                    AllowedExtensions = ".pdf,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx",
+                    MaxFileSizeMB = 50,
+                    SortOrder = 3,
+                    IsActive = true,
+                    CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                },
+                new ContentType
+                {
+                    Id = 4,
+                    Name = "Audio",
+                    Code = "Audio",
+                    Icon = "Music",
+                    Prompt = "Upload an audio file (MP3, WAV, M4A)",
+                    AllowedExtensions = ".mp3,.wav,.m4a,.ogg,.flac,.aac",
+                    MaxFileSizeMB = 100,
+                    SortOrder = 4,
+                    IsActive = true,
+                    CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                },
+                new ContentType
+                {
+                    Id = 5,
+                    Name = "External Link",
+                    Code = "Link",
+                    Icon = "Link",
+                    Prompt = "Paste an external URL (YouTube, TikTok, or any video link)",
+                    AllowedExtensions = "",
+                    MaxFileSizeMB = 0,
+                    SortOrder = 5,
+                    IsActive = true,
+                    CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                }
+            );
         });
     }
 }

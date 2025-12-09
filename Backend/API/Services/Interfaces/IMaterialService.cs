@@ -5,11 +5,11 @@ namespace Pickleball.College.Services;
 
 public interface IMaterialService
 {
-    Task<MaterialDto> CreateMaterialAsync(Guid coachId, CreateMaterialRequest request, string? videoUrl, string? thumbnailUrl);
-    Task<PurchaseResult> PurchaseMaterialAsync(Guid studentId, Guid materialId);
+    Task<MaterialDto> CreateMaterialAsync(int coachId, CreateMaterialRequest request, string? videoUrl, string? thumbnailUrl);
+    Task<PurchaseResult> PurchaseMaterialAsync(int studentId, int materialId);
     Task<List<MaterialDto>> GetPublishedMaterialsAsync();
-    Task<List<MaterialDto>> GetCoachMaterialsAsync(Guid coachId);
-    Task<MaterialDto> GetMaterialAsync(Guid materialId);
+    Task<List<MaterialDto>> GetCoachMaterialsAsync(int coachId);
+    Task<MaterialDto> GetMaterialAsync(int materialId);
 }
 
 public interface IFileStorageService
@@ -35,8 +35,8 @@ public interface IAuthService
 
 public interface ISessionService
 {
-    Task<TrainingSession> ScheduleSessionAsync(SessionRequest request, Guid studentId);
-    Task<List<TrainingSession>> GetCoachSessionsAsync(Guid coachId);
-    Task<List<TrainingSession>> GetStudentSessionsAsync(Guid studentId);
-    Task<bool> CancelSessionAsync(Guid sessionId, Guid userId);
+    Task<TrainingSession> ScheduleSessionAsync(SessionRequest request, int studentId);
+    Task<List<TrainingSession>> GetCoachSessionsAsync(int coachId);
+    Task<List<TrainingSession>> GetStudentSessionsAsync(int studentId);
+    Task<bool> CancelSessionAsync(int sessionId, int userId);
 }

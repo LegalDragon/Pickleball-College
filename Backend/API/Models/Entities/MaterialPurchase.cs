@@ -2,9 +2,9 @@ namespace Pickleball.College.Models.Entities;
 
 public class MaterialPurchase
 {
-    public Guid Id { get; set; }
-    public Guid StudentId { get; set; }
-    public Guid MaterialId { get; set; }
+    public int Id { get; set; }
+    public int StudentId { get; set; }
+    public int MaterialId { get; set; }
     public decimal PurchasePrice { get; set; }
     public decimal PlatformFee { get; set; }
     public decimal CoachEarnings { get; set; }

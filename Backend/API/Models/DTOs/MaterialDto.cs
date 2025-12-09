@@ -2,7 +2,7 @@ namespace Pickleball.College.Models.DTOs;
 
 public class MaterialDto
 {
-    public Guid Id { get; set; }
+    public int Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string ContentType { get; set; } = "Text";
@@ -24,7 +24,7 @@ public class CoachDto
 public class PurchaseResult
 {
     public string ClientSecret { get; set; } = string.Empty;
-    public Guid PurchaseId { get; set; }
+    public int PurchaseId { get; set; }
     public decimal Amount { get; set; }
 }
 
@@ -45,8 +45,8 @@ public class RegisterRequest
 
 public class SessionRequest
 {
-    public Guid CoachId { get; set; }
-    public Guid? MaterialId { get; set; }
+    public int CoachId { get; set; }
+    public int? MaterialId { get; set; }
     public string SessionType { get; set; } = "Online";
     public DateTime ScheduledAt { get; set; }
     public int DurationMinutes { get; set; }

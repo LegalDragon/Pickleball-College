@@ -23,8 +23,8 @@ public class MaterialsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<MaterialDto>> CreateMaterial([FromForm] CreateMaterialRequest request)
     {
-        var coachId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(coachId) || !Guid.TryParse(coachId, out var coachGuid))
+        var coachIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(coachIdStr) || !int.TryParse(coachIdStr, out var coachId))
         {
             return Unauthorized();
         }
@@ -44,7 +44,7 @@ public class MaterialsController : ControllerBase
                 thumbnailUrl = await _fileStorageService.UploadFileAsync(request.ThumbnailFile, "thumbnails");
             }
 
-            var material = await _materialService.CreateMaterialAsync(coachGuid, request, videoUrl, thumbnailUrl);
+            var material = await _materialService.CreateMaterialAsync(coachId, request, videoUrl, thumbnailUrl);
             return Ok(material);
         }
         catch (Exception ex)
@@ -63,7 +63,7 @@ public class MaterialsController : ControllerBase
 
     [HttpGet("coach/{coachId}")]
     [Authorize(Roles = "Coach")]
-    public async Task<ActionResult<List<MaterialDto>>> GetCoachMaterials(Guid coachId)
+    public async Task<ActionResult<List<MaterialDto>>> GetCoachMaterials(int coachId)
     {
         var materials = await _materialService.GetCoachMaterialsAsync(coachId);
         return Ok(materials);
@@ -71,24 +71,24 @@ public class MaterialsController : ControllerBase
 
     [HttpGet("{materialId}")]
     [AllowAnonymous]
-    public async Task<ActionResult<MaterialDto>> GetMaterial(Guid materialId)
+    public async Task<ActionResult<MaterialDto>> GetMaterial(int materialId)
     {
         var material = await _materialService.GetMaterialAsync(materialId);
         return Ok(material);
     }
 
     [HttpPost("{materialId}/purchase")]
-    public async Task<ActionResult<PurchaseResult>> PurchaseMaterial(Guid materialId)
+    public async Task<ActionResult<PurchaseResult>> PurchaseMaterial(int materialId)
     {
-        var studentId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(studentId) || !Guid.TryParse(studentId, out var studentGuid))
+        var studentIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(studentIdStr) || !int.TryParse(studentIdStr, out var studentId))
         {
             return Unauthorized();
         }
 
         try
         {
-            var result = await _materialService.PurchaseMaterialAsync(studentGuid, materialId);
+            var result = await _materialService.PurchaseMaterialAsync(studentId, materialId);
             return Ok(result);
         }
         catch (ArgumentException ex)

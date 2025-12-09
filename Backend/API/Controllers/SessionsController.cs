@@ -21,15 +21,15 @@ public class SessionsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult> ScheduleSession(SessionRequest request)
     {
-        var studentId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(studentId) || !Guid.TryParse(studentId, out var studentGuid))
+        var studentIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(studentIdStr) || !int.TryParse(studentIdStr, out var studentId))
         {
             return Unauthorized();
         }
 
         try
         {
-            var session = await _sessionService.ScheduleSessionAsync(request, studentGuid);
+            var session = await _sessionService.ScheduleSessionAsync(request, studentId);
             return Ok(session);
         }
         catch (Exception ex)
@@ -40,7 +40,7 @@ public class SessionsController : ControllerBase
 
     [HttpGet("coach/{coachId}")]
     [Authorize(Roles = "Coach")]
-    public async Task<ActionResult> GetCoachSessions(Guid coachId)
+    public async Task<ActionResult> GetCoachSessions(int coachId)
     {
         //var coachId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         //if (string.IsNullOrEmpty(coachId) || !Guid.TryParse(coachId, out var coachGuid))
@@ -56,26 +56,26 @@ public class SessionsController : ControllerBase
     [HttpGet("student")]
     public async Task<ActionResult> GetStudentSessions()
     {
-        var studentId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(studentId) || !Guid.TryParse(studentId, out var studentGuid))
+        var studentIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(studentIdStr) || !int.TryParse(studentIdStr, out var studentId))
         {
             return Unauthorized();
         }
 
-        var sessions = await _sessionService.GetStudentSessionsAsync(studentGuid);
+        var sessions = await _sessionService.GetStudentSessionsAsync(studentId);
         return Ok(sessions);
     }
 
     [HttpDelete("{sessionId}")]
-    public async Task<ActionResult> CancelSession(Guid sessionId)
+    public async Task<ActionResult> CancelSession(int sessionId)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
         {
             return Unauthorized();
         }
 
-        var result = await _sessionService.CancelSessionAsync(sessionId, userGuid);
+        var result = await _sessionService.CancelSessionAsync(sessionId, userId);
         if (!result)
         {
             return NotFound("Session not found or you don't have permission to cancel it");
