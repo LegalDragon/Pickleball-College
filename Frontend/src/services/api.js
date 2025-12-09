@@ -254,6 +254,15 @@ export const userApi = {
   updateUser: (id, data) => api.put(`/users/${id}`, data)
 }
 
+// Content Types API
+export const contentTypesApi = {
+  // Get all active content types
+  getAll: () => api.get('/contenttypes'),
+
+  // Get content type by code
+  getByCode: (code) => api.get(`/contenttypes/${code}`)
+}
+
 // Asset Management API
 export const assetApi = {
   // Upload a single file
