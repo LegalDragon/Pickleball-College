@@ -5,6 +5,7 @@ public class FileStorageOptions
     public const string SectionName = "FileStorage";
 
     public string BasePath { get; set; } = "wwwroot";
+    public string AssetBaseUrl { get; set; } = string.Empty;
     public string UploadsFolder { get; set; } = "uploads";
     public string[] AllowedImageExtensions { get; set; } = { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg" };
     public string[] AllowedVideoExtensions { get; set; } = { ".mp4", ".webm", ".mov", ".avi" };

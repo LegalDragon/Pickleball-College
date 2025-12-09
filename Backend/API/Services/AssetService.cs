@@ -9,6 +9,7 @@ public interface IAssetService
     Task<bool> DeleteFileAsync(string fileUrl);
     string GetUploadPath(string category);
     string GetFileUrl(string category, string fileName);
+    string GetRelativePathFromUrl(string url);
     ValidationResult ValidateFile(IFormFile file, string category);
     CategoryOptions? GetCategoryOptions(string category);
 }
@@ -113,8 +114,11 @@ public class AssetService : IAssetService
             if (string.IsNullOrEmpty(fileUrl))
                 return false;
 
+            // Convert full URL to relative path if needed
+            var relativePath = GetRelativePathFromUrl(fileUrl);
+
             // Security: Ensure the URL is within the uploads directory
-            if (!fileUrl.StartsWith($"/{_options.UploadsFolder}/"))
+            if (!relativePath.StartsWith($"/{_options.UploadsFolder}/"))
             {
                 _logger.LogWarning("Attempted to delete file outside uploads directory: {Url}", fileUrl);
                 return false;
@@ -122,7 +126,7 @@ public class AssetService : IAssetService
 
             // Use configured BasePath as primary storage location
             var basePath = !string.IsNullOrEmpty(_options.BasePath) ? _options.BasePath : _environment.WebRootPath ?? "wwwroot";
-            var filePath = Path.Combine(basePath, fileUrl.TrimStart('/'));
+            var filePath = Path.Combine(basePath, relativePath.TrimStart('/'));
 
             if (File.Exists(filePath))
             {
@@ -153,7 +157,33 @@ public class AssetService : IAssetService
     {
         var categoryOptions = _options.GetCategory(category);
         var folder = categoryOptions?.Folder ?? category;
-        return $"/{_options.UploadsFolder}/{folder}/{fileName}";
+        var relativePath = $"/{_options.UploadsFolder}/{folder}/{fileName}";
+
+        // If AssetBaseUrl is configured, return full URL; otherwise return relative path
+        if (!string.IsNullOrEmpty(_options.AssetBaseUrl))
+        {
+            return $"{_options.AssetBaseUrl.TrimEnd('/')}{relativePath}";
+        }
+
+        return relativePath;
+    }
+
+    /// <summary>
+    /// Extracts the relative path from a full URL for file operations
+    /// </summary>
+    public string GetRelativePathFromUrl(string url)
+    {
+        if (string.IsNullOrEmpty(url))
+            return url;
+
+        // If URL starts with AssetBaseUrl, strip it to get relative path
+        if (!string.IsNullOrEmpty(_options.AssetBaseUrl) && url.StartsWith(_options.AssetBaseUrl))
+        {
+            return url.Substring(_options.AssetBaseUrl.TrimEnd('/').Length);
+        }
+
+        // Already a relative path
+        return url;
     }
 
     public ValidationResult ValidateFile(IFormFile file, string category)
