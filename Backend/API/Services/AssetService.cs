@@ -10,11 +10,11 @@ public interface IAssetService
 {
     Task<AssetUploadResult> UploadFileAsync(IFormFile file, string folder, int? uploadedBy = null, string? objectType = null, int? objectId = null);
     Task<bool> DeleteFileAsync(string assetUrl);
-    Task<Asset?> GetAssetByIdAsync(Guid fileId);
+    Task<Asset?> GetAssetByIdAsync(int fileId);
     Task<List<Asset>> GetAssetsByObjectAsync(string objectType, int objectId);
-    Task<(Stream? stream, string? contentType, string? fileName)> GetAssetStreamAsync(Guid fileId);
+    Task<(Stream? stream, string? contentType, string? fileName)> GetAssetStreamAsync(int fileId);
     string GetUploadPath(string folder);
-    string GetAssetUrl(Guid fileId);
+    string GetAssetUrl(int fileId);
     ValidationResult ValidateFile(IFormFile file, string folder);
     CategoryOptions? GetCategoryOptions(string folder);
 }
@@ -22,7 +22,7 @@ public interface IAssetService
 public class AssetUploadResult
 {
     public bool Success { get; set; }
-    public Guid? FileId { get; set; }
+    public int? FileId { get; set; }
     public string? Url { get; set; }
     public string? FileName { get; set; }
     public string? OriginalFileName { get; set; }
@@ -79,10 +79,10 @@ public class AssetService : IAssetService
             var uploadPath = GetUploadPath(folder);
             Directory.CreateDirectory(uploadPath);
 
-            // Generate unique filename
-            var fileId = Guid.NewGuid();
+            // Generate unique filename using GUID for storage
+            var uniqueId = Guid.NewGuid().ToString("N");
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-            var fileName = $"{fileId}{extension}";
+            var fileName = $"{uniqueId}{extension}";
             var storagePath = Path.Combine(uploadPath, fileName);
 
             // Save the file
@@ -91,10 +91,9 @@ public class AssetService : IAssetService
                 await file.CopyToAsync(stream);
             }
 
-            // Create asset record in database
+            // Create asset record in database (FileId is auto-generated)
             var asset = new Asset
             {
-                FileId = fileId,
                 FileName = fileName,
                 OriginalFileName = file.FileName,
                 ContentType = file.ContentType,
@@ -190,12 +189,12 @@ public class AssetService : IAssetService
         }
     }
 
-    public async Task<Asset?> GetAssetByIdAsync(Guid fileId)
+    public async Task<Asset?> GetAssetByIdAsync(int fileId)
     {
         return await _context.Assets.FirstOrDefaultAsync(a => a.FileId == fileId && !a.IsDeleted);
     }
 
-    public async Task<(Stream? stream, string? contentType, string? fileName)> GetAssetStreamAsync(Guid fileId)
+    public async Task<(Stream? stream, string? contentType, string? fileName)> GetAssetStreamAsync(int fileId)
     {
         var asset = await GetAssetByIdAsync(fileId);
         if (asset == null)
@@ -220,7 +219,7 @@ public class AssetService : IAssetService
         return Path.Combine(basePath, _options.UploadsFolder, folderName);
     }
 
-    public string GetAssetUrl(Guid fileId)
+    public string GetAssetUrl(int fileId)
     {
         // Return API endpoint URL for serving assets
         if (!string.IsNullOrEmpty(_options.AssetBaseUrl))
@@ -230,7 +229,7 @@ public class AssetService : IAssetService
         return $"/api/assets/{fileId}";
     }
 
-    private Guid? ExtractFileIdFromUrl(string url)
+    private int? ExtractFileIdFromUrl(string url)
     {
         if (string.IsNullOrEmpty(url))
             return null;
@@ -248,7 +247,7 @@ public class AssetService : IAssetService
                 idString = idString.Substring(0, queryIndex);
             idString = idString.TrimEnd('/');
 
-            if (Guid.TryParse(idString, out var fileId))
+            if (int.TryParse(idString, out var fileId))
                 return fileId;
         }
 

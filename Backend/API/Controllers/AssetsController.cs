@@ -36,14 +36,14 @@ public class AssetsController : ControllerBase
     /// <summary>
     /// Get an asset by its ID (serves the file)
     /// </summary>
-    /// <param name="fileId">The unique file ID (GUID)</param>
+    /// <param name="fileId">The unique file ID</param>
     [AllowAnonymous]
-    [HttpGet("{fileId:guid}")]
-    public async Task<IActionResult> GetAsset(Guid fileId)
+    [HttpGet("{fileId:int}")]
+    public async Task<IActionResult> GetAsset(int fileId)
     {
         try
         {
-            if (fileId == Guid.Empty)
+            if (fileId <= 0)
             {
                 return BadRequest("Valid file ID is required");
             }

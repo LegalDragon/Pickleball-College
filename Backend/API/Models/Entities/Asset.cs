@@ -1,11 +1,13 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Pickleball.College.Models.Entities;
 
 public class Asset
 {
     [Key]
-    public Guid FileId { get; set; } = Guid.NewGuid();
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int FileId { get; set; }
 
     [Required]
     [MaxLength(255)]
