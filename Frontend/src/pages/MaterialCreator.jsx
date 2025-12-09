@@ -1,15 +1,19 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { materialApi } from '../services/api'
+import { materialApi, assetApi } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Video, Image, FileText, Link } from 'lucide-react'
+import { Upload, Video, Image, FileText, Link, Play } from 'lucide-react'
+import VideoUploadModal from '../components/ui/VideoUploadModal'
 
 const MaterialCreator = () => {
-  const [videoFile, setVideoFile] = useState(null)
+  const [videoUrl, setVideoUrl] = useState(null)
+  const [videoType, setVideoType] = useState(null) // 'url' or 'file'
   const [thumbnailFile, setThumbnailFile] = useState(null)
+  const [thumbnailPreview, setThumbnailPreview] = useState(null)
   const [documentFile, setDocumentFile] = useState(null)
   const [uploading, setUploading] = useState(false)
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
   const { user } = useAuth()
   const navigate = useNavigate()
 
@@ -25,29 +29,40 @@ const MaterialCreator = () => {
 
   const contentType = watch('contentType')
 
+  // Handle video save from modal
+  const handleVideoSave = ({ url, type }) => {
+    setVideoUrl(url)
+    setVideoType(type)
+  }
+
+  // Handle thumbnail selection with preview
+  const handleThumbnailChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setThumbnailFile(file)
+      setThumbnailPreview(URL.createObjectURL(file))
+    }
+  }
+
   const onSubmit = async (data) => {
     if (!user) {
       alert('Please log in to create materials')
       return
     }
 
-    // Validate file uploads based on content type
-    if (contentType !== 'Link') {
-      if (contentType === 'Video' && !videoFile) {
-        alert('Please upload a video file for Video content')
-        return
-      }
-      if (contentType === 'Image' && !thumbnailFile) {
-        alert('Please upload an image file for Image content')
-        return
-      }
-      if (contentType === 'Document' && !documentFile) {
-        alert('Please upload a document file for Document content')
-        return
-      }
+    // Validate based on content type
+    if (contentType === 'Video' && !videoUrl) {
+      alert('Please add a video for Video content')
+      return
     }
-
-    // Validate external link if Link type
+    if (contentType === 'Image' && !thumbnailFile) {
+      alert('Please upload an image file for Image content')
+      return
+    }
+    if (contentType === 'Document' && !documentFile) {
+      alert('Please upload a document file for Document content')
+      return
+    }
     if (contentType === 'Link') {
       if (!data.externalLink) {
         alert('Please provide an external link for Link content')
@@ -65,17 +80,23 @@ const MaterialCreator = () => {
       formData.append('title', data.title)
       formData.append('description', data.description)
       formData.append('contentType', data.contentType)
-      formData.append('externalLink', data.externalLink || '')
       formData.append('price', data.price.toString())
 
-      if (videoFile) {
-        formData.append('videoFile', videoFile)
+      // Handle video URL (from VideoUploadModal)
+      if (contentType === 'Video' && videoUrl) {
+        formData.append('externalLink', videoUrl)
+      } else if (contentType === 'Link') {
+        formData.append('externalLink', data.externalLink || '')
+      } else {
+        formData.append('externalLink', '')
       }
 
+      // Upload thumbnail if provided
       if (thumbnailFile) {
         formData.append('thumbnailFile', thumbnailFile)
       }
 
+      // Upload document if provided
       if (documentFile) {
         formData.append('documentFile', documentFile)
       }
@@ -109,36 +130,76 @@ const MaterialCreator = () => {
     }
   }
 
+  // Check if URL is external (YouTube, etc.)
+  const isExternalVideoUrl = (url) => {
+    if (!url) return false
+    const patterns = ['youtube.com', 'youtu.be', 'tiktok.com', 'vimeo.com']
+    return patterns.some(p => url.includes(p))
+  }
+
+  // Get YouTube embed URL
+  const getVideoEmbedUrl = (url) => {
+    if (!url) return null
+    if (url.includes('youtube.com/watch')) {
+      const videoId = new URL(url).searchParams.get('v')
+      return `https://www.youtube.com/embed/${videoId}`
+    }
+    if (url.includes('youtu.be/')) {
+      const videoId = url.split('youtu.be/')[1]?.split('?')[0]
+      return `https://www.youtube.com/embed/${videoId}`
+    }
+    return null
+  }
+
   const renderFileUpload = () => {
     switch (contentType) {
       case 'Video':
         return (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Video File *
+              Video Content *
             </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center">
-              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <input
-                type="file"
-                accept="video/*"
-                onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
-                className="hidden"
-                id="video-upload"
-                required={contentType === 'Video'}
-              />
-              <label htmlFor="video-upload" className="cursor-pointer">
-                <span className="text-primary-600 hover:text-primary-700 font-medium">
-                  Choose video file
-                </span>
-              </label>
-              {videoFile && (
-                <p className="mt-2 text-sm text-gray-600">{videoFile.name}</p>
-              )}
-              <p className="mt-1 text-xs text-gray-500">
-                Required for video content
-              </p>
-            </div>
+            {videoUrl ? (
+              <div className="relative rounded-lg overflow-hidden bg-gray-100">
+                {isExternalVideoUrl(videoUrl) && getVideoEmbedUrl(videoUrl) ? (
+                  <iframe
+                    src={getVideoEmbedUrl(videoUrl)}
+                    className="w-full aspect-video"
+                    allowFullScreen
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  />
+                ) : isExternalVideoUrl(videoUrl) ? (
+                  <div className="w-full aspect-video flex items-center justify-center bg-gray-200">
+                    <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center">
+                      <Play className="w-5 h-5 mr-2" />
+                      Open Video Link
+                    </a>
+                  </div>
+                ) : (
+                  <video src={videoUrl} controls className="w-full aspect-video" />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsVideoModalOpen(true)}
+                  className="absolute top-2 right-2 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                >
+                  Change Video
+                </button>
+              </div>
+            ) : (
+              <div
+                onClick={() => setIsVideoModalOpen(true)}
+                className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition"
+              >
+                <Video className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                <p className="text-primary-600 hover:text-primary-700 font-medium">
+                  Add Video
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Upload a file or paste a YouTube/TikTok link
+                </p>
+              </div>
+            )}
           </div>
         )
       
@@ -378,6 +439,18 @@ const MaterialCreator = () => {
           </form>
         </div>
       </div>
+
+      {/* Video Upload Modal */}
+      <VideoUploadModal
+        isOpen={isVideoModalOpen}
+        onClose={() => setIsVideoModalOpen(false)}
+        onSave={handleVideoSave}
+        currentVideo={videoUrl}
+        objectType="CoachMaterial"
+        objectId={null}
+        title="Add Course Video"
+        maxSizeMB={500}
+      />
     </div>
   )
 }
