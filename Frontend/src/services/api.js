@@ -205,4 +205,62 @@ export const themeApi = {
   reset: () => api.post('/theme/reset')
 }
 
+// User Profile API
+export const userApi = {
+  // Get current user's profile
+  getProfile: () => api.get('/users/profile'),
+
+  // Update current user's profile
+  updateProfile: (data) => api.put('/users/profile', data),
+
+  // Upload avatar
+  uploadAvatar: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/users/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  // Delete avatar
+  deleteAvatar: () => api.delete('/users/avatar'),
+
+  // Get all users (admin only)
+  getAllUsers: () => api.get('/users'),
+
+  // Update user by ID (admin only)
+  updateUser: (id, data) => api.put(`/users/${id}`, data)
+}
+
+// Asset Management API
+export const assetApi = {
+  // Upload a single file
+  upload: (file, category = 'all', folder = null) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const params = new URLSearchParams({ category });
+    if (folder) params.append('folder', folder);
+    return api.post(`/assets/upload?${params.toString()}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  // Upload multiple files
+  uploadMultiple: (files, category = 'all', folder = null) => {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    const params = new URLSearchParams({ category });
+    if (folder) params.append('folder', folder);
+    return api.post(`/assets/upload-multiple?${params.toString()}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  // Delete a file by URL
+  delete: (url) => api.delete(`/assets?url=${encodeURIComponent(url)}`),
+
+  // Get allowed file types
+  getAllowedTypes: () => api.get('/assets/allowed-types')
+}
+
 export default api
