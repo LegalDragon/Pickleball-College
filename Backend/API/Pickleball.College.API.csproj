@@ -30,8 +30,4 @@
     <Folder Include="Context\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Database\Pickleball.College.Database.csproj" />
-  </ItemGroup>
-
 </Project>
