@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { useAuth } from '../contexts/AuthContext'
-import { 
-  User, Camera, Video, MapPin, Phone, Calendar, 
+import { userApi } from '../services/api'
+import {
+  User, Camera, Video, MapPin, Phone, Calendar,
   Edit2, Save, Upload, X, Play, Award, Target,
-  Zap, Heart, Activity, TrendingUp
+  Zap, Heart, Activity, TrendingUp, ChevronRight
 } from 'lucide-react'
 
 const Profile = () => {
@@ -12,18 +13,24 @@ const Profile = () => {
   const [loading, setLoading] = useState(false)
   const [avatarPreview, setAvatarPreview] = useState(null)
   const [videoPreview, setVideoPreview] = useState(null)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [videoUploading, setVideoUploading] = useState(false)
   const fileInputRef = useRef(null)
   const videoInputRef = useRef(null)
-  const [isEditing, setIsEditing] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-    setValue,
-    watch
-  } = useForm({
+  // Separate editing states for each section
+  const [isEditingBasicInfo, setIsEditingBasicInfo] = useState(false)
+  const [isEditingPickleballInfo, setIsEditingPickleballInfo] = useState(false)
+  const [savingBasicInfo, setSavingBasicInfo] = useState(false)
+  const [savingPickleballInfo, setSavingPickleballInfo] = useState(false)
+
+  // Bio modal state
+  const [isBioModalOpen, setIsBioModalOpen] = useState(false)
+  const [tempBio, setTempBio] = useState('')
+  const [savingBio, setSavingBio] = useState(false)
+
+  // Separate forms for each section
+  const basicInfoForm = useForm({
     defaultValues: {
       firstName: '',
       lastName: '',
@@ -35,11 +42,14 @@ const Profile = () => {
       city: '',
       state: '',
       zipCode: '',
-      country: '',
-      bio: '',
+      country: ''
+    }
+  })
+
+  const pickleballForm = useForm({
+    defaultValues: {
       experienceLevel: '',
       playingStyle: '',
-      handedness: '',
       paddleBrand: '',
       paddleModel: '',
       yearsPlaying: '',
@@ -48,10 +58,13 @@ const Profile = () => {
     }
   })
 
-  // Load user data into form
+  // Local state for handedness
+  const [handedness, setHandedness] = useState('')
+
+  // Load user data into forms
   useEffect(() => {
     if (user) {
-      reset({
+      basicInfoForm.reset({
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         email: user.email || '',
@@ -62,18 +75,22 @@ const Profile = () => {
         city: user.city || '',
         state: user.state || '',
         zipCode: user.zipCode || '',
-        country: user.country || '',
-        bio: user.bio || '',
+        country: user.country || ''
+      })
+
+      pickleballForm.reset({
         experienceLevel: user.experienceLevel || '',
         playingStyle: user.playingStyle || '',
-        handedness: user.handedness || '',
         paddleBrand: user.paddleBrand || '',
         paddleModel: user.paddleModel || '',
         yearsPlaying: user.yearsPlaying || '',
         tournamentLevel: user.tournamentLevel || '',
         favoriteShot: user.favoriteShot || ''
       })
-      
+
+      setHandedness(user.handedness || '')
+      setTempBio(user.bio || '')
+
       if (user.avatar) {
         setAvatarPreview(user.avatar)
       }
@@ -81,65 +98,74 @@ const Profile = () => {
         setVideoPreview(user.introVideo)
       }
     }
-  }, [user, reset])
+  }, [user])
 
-  const onSubmit = async (data) => {
-    setLoading(true)
-    try {
-      const formData = new FormData()
-      
-      // Append all form data
-      Object.keys(data).forEach(key => {
-        if (data[key]) {
-          formData.append(key, data[key])
-        }
-      })
-
-      // Append files if they exist
-      if (fileInputRef.current?.files[0]) {
-        formData.append('avatar', fileInputRef.current.files[0])
-      }
-      
-      if (videoInputRef.current?.files[0]) {
-        formData.append('introVideo', videoInputRef.current.files[0])
-      }
-
-      // Call your API to update profile
-      const response = await updateUser(formData)
-      
-      if (response.success) {
-        setIsEditing(false)
-        alert('Profile updated successfully!')
-      } else {
-        alert('Failed to update profile: ' + response.error)
-      }
-    } catch (error) {
-      console.error('Profile update error:', error)
-      alert('An error occurred while updating your profile.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleAvatarChange = (e) => {
+  // Handle avatar upload directly (no edit mode needed)
+  const handleAvatarChange = async (e) => {
     const file = e.target.files[0]
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      if (file.size > 5 * 1024 * 1024) {
         alert('Image size should be less than 5MB')
         return
       }
+
+      // Show preview immediately
       const reader = new FileReader()
       reader.onloadend = () => {
         setAvatarPreview(reader.result)
       }
       reader.readAsDataURL(file)
+
+      // Upload to server
+      setAvatarUploading(true)
+      try {
+        const response = await userApi.uploadAvatar(file)
+        if (response.data) {
+          updateUser({ ...user, avatar: response.data.avatarUrl })
+        }
+      } catch (error) {
+        console.error('Avatar upload error:', error)
+        alert('Failed to upload avatar')
+        // Revert preview on error
+        setAvatarPreview(user?.avatar || null)
+      } finally {
+        setAvatarUploading(false)
+      }
     }
   }
 
-  const handleVideoChange = (e) => {
+  // Handle handedness selection
+  const handleHandednessChange = async (value) => {
+    setHandedness(value)
+    try {
+      await userApi.updateProfile({ handedness: value })
+      updateUser({ ...user, handedness: value })
+    } catch (error) {
+      console.error('Handedness update error:', error)
+      setHandedness(user?.handedness || '')
+    }
+  }
+
+  // Handle bio save from modal
+  const handleBioSave = async () => {
+    setSavingBio(true)
+    try {
+      await userApi.updateProfile({ bio: tempBio })
+      updateUser({ ...user, bio: tempBio })
+      setIsBioModalOpen(false)
+    } catch (error) {
+      console.error('Bio update error:', error)
+      alert('Failed to update bio')
+    } finally {
+      setSavingBio(false)
+    }
+  }
+
+  // Handle video upload
+  const handleVideoChange = async (e) => {
     const file = e.target.files[0]
     if (file) {
-      if (file.size > 50 * 1024 * 1024) { // 50MB limit
+      if (file.size > 50 * 1024 * 1024) {
         alert('Video size should be less than 50MB')
         return
       }
@@ -147,22 +173,66 @@ const Profile = () => {
         alert('Please select a video file')
         return
       }
+
       const videoUrl = URL.createObjectURL(file)
       setVideoPreview(videoUrl)
+
+      setVideoUploading(true)
+      try {
+        const formData = new FormData()
+        formData.append('introVideo', file)
+        await userApi.updateProfile(formData)
+        // Update user context if needed
+      } catch (error) {
+        console.error('Video upload error:', error)
+        alert('Failed to upload video')
+        setVideoPreview(user?.introVideo || null)
+      } finally {
+        setVideoUploading(false)
+      }
     }
   }
 
-  const removeAvatar = () => {
-    setAvatarPreview(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
-  }
-
-  const removeVideo = () => {
+  const removeVideo = async () => {
     setVideoPreview(null)
     if (videoInputRef.current) {
       videoInputRef.current.value = ''
+    }
+    try {
+      await userApi.updateProfile({ introVideo: null })
+      updateUser({ ...user, introVideo: null })
+    } catch (error) {
+      console.error('Error removing video:', error)
+    }
+  }
+
+  // Save Basic Info
+  const handleSaveBasicInfo = async (data) => {
+    setSavingBasicInfo(true)
+    try {
+      await userApi.updateProfile(data)
+      updateUser({ ...user, ...data })
+      setIsEditingBasicInfo(false)
+    } catch (error) {
+      console.error('Basic info update error:', error)
+      alert('Failed to update basic information')
+    } finally {
+      setSavingBasicInfo(false)
+    }
+  }
+
+  // Save Pickleball Info
+  const handleSavePickleballInfo = async (data) => {
+    setSavingPickleballInfo(true)
+    try {
+      await userApi.updateProfile(data)
+      updateUser({ ...user, ...data })
+      setIsEditingPickleballInfo(false)
+    } catch (error) {
+      console.error('Pickleball info update error:', error)
+      alert('Failed to update pickleball information')
+    } finally {
+      setSavingPickleballInfo(false)
     }
   }
 
@@ -181,12 +251,6 @@ const Profile = () => {
     'Strategic/Placement',
     'Power Player',
     'Finesse Player'
-  ]
-
-  const handednessOptions = [
-    { value: 'right', label: 'Right-handed', icon: '👉' },
-    { value: 'left', label: 'Left-handed', icon: '👈' },
-    { value: 'ambidextrous', label: 'Ambidextrous', icon: '🔄' }
   ]
 
   const tournamentLevels = [
@@ -208,217 +272,270 @@ const Profile = () => {
     'Reset'
   ]
 
+  // Truncate bio for preview
+  const getBioPreview = () => {
+    const bio = user?.bio || ''
+    if (bio.length > 50) {
+      return bio.substring(0, 50) + '...'
+    }
+    return bio || 'No bio added yet...'
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-8">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-3xl font-bold text-white">My Profile</h1>
-                <p className="text-blue-100 mt-2">
-                  Complete your profile to enhance your pickleball experience
-                </p>
-              </div>
-              {!isEditing ? (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="flex items-center space-x-2 px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  <span>Edit Profile</span>
-                </button>
-              ) : (
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => {
-                      setIsEditing(false)
-                      reset()
-                    }}
-                    className="px-4 py-2 border border-white text-white rounded-lg font-medium hover:bg-white/10 transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSubmit(onSubmit)}
-                    disabled={loading}
-                    className="flex items-center space-x-2 px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                        <span>Saving...</span>
-                      </>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-t-2xl px-6 py-8">
+          <h1 className="text-3xl font-bold text-white">My Profile</h1>
+          <p className="text-blue-100 mt-2">
+            Complete your profile to enhance your pickleball experience
+          </p>
+        </div>
+
+        <div className="bg-white rounded-b-2xl shadow-xl">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-6">
+            {/* LEFT SIDE - Avatar, Handedness, Bio, Video */}
+            <div className="lg:col-span-1 space-y-6">
+              {/* Avatar Section with Camera Icon */}
+              <div className="text-center">
+                <div className="relative inline-block">
+                  <div className="w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-gray-100">
+                    {avatarPreview ? (
+                      <img
+                        src={avatarPreview}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        <span>Save Changes</span>
-                      </>
+                      <div className="w-full h-full flex items-center justify-center">
+                        <User className="w-16 h-16 text-gray-400" />
+                      </div>
                     )}
+                    {avatarUploading && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Camera Icon Overlay */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleAvatarChange}
+                    accept="image/*"
+                    className="hidden"
+                    id="avatar-upload"
+                  />
+                  <label
+                    htmlFor="avatar-upload"
+                    className="absolute bottom-2 right-2 w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition shadow-lg"
+                  >
+                    <Camera className="w-5 h-5 text-white" />
+                  </label>
+                </div>
+                <p className="text-sm text-gray-500 mt-2">Click camera to change photo</p>
+              </div>
+
+              {/* Handedness Selection - Just Left/Right */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 text-center">Dominant Hand</h3>
+                <div className="flex justify-center gap-4">
+                  <button
+                    onClick={() => handleHandednessChange('left')}
+                    className={`flex flex-col items-center px-6 py-3 rounded-lg border-2 transition ${
+                      handedness === 'left'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400 text-gray-600'
+                    }`}
+                  >
+                    <span className="text-2xl mb-1">L</span>
+                    <span className="text-xs font-medium">Left</span>
+                  </button>
+                  <button
+                    onClick={() => handleHandednessChange('right')}
+                    className={`flex flex-col items-center px-6 py-3 rounded-lg border-2 transition ${
+                      handedness === 'right'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400 text-gray-600'
+                    }`}
+                  >
+                    <span className="text-2xl mb-1">R</span>
+                    <span className="text-xs font-medium">Right</span>
                   </button>
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
 
-          <div className="px-6 py-8">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-              {/* Avatar & Basic Info Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Avatar Upload */}
-                <div className="lg:col-span-1">
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Picture</h3>
-                      <div className="relative">
-                        <div className="w-48 h-48 mx-auto rounded-full border-4 border-white shadow-lg overflow-hidden bg-gray-100">
-                          {avatarPreview ? (
-                            <img 
-                              src={avatarPreview} 
-                              alt="Profile" 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <User className="w-20 h-20 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-                        
-                        {isEditing && (
-                          <div className="mt-4 space-y-3">
-                            <input
-                              type="file"
-                              ref={fileInputRef}
-                              onChange={handleAvatarChange}
-                              accept="image/*"
-                              className="hidden"
-                              id="avatar-upload"
-                            />
-                            <label
-                              htmlFor="avatar-upload"
-                              className="block w-full text-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer transition"
-                            >
-                              <div className="flex items-center justify-center space-x-2">
-                                <Camera className="w-4 h-4" />
-                                <span>Upload Photo</span>
-                              </div>
-                            </label>
-                            {avatarPreview && (
-                              <button
-                                type="button"
-                                onClick={removeAvatar}
-                                className="block w-full text-center px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition"
-                              >
-                                Remove Photo
-                              </button>
-                            )}
-                            <p className="text-xs text-gray-500 text-center">
-                              Recommended: Square image, 500x500px, max 5MB
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Handedness Selection */}
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Handedness</h3>
-                      <div className="space-y-3">
-                        {handednessOptions.map((option) => (
-                          <label
-                            key={option.value}
-                            className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition ${
-                              watch('handedness') === option.value
-                                ? 'border-blue-500 bg-blue-50'
-                                : 'border-gray-300 hover:bg-gray-50'
-                            } ${!isEditing ? 'opacity-60 cursor-not-allowed' : ''}`}
-                          >
-                            <input
-                              type="radio"
-                              {...register('handedness')}
-                              value={option.value}
-                              disabled={!isEditing}
-                              className="hidden"
-                            />
-                            <span className="text-2xl">{option.icon}</span>
-                            <span className="flex-1">{option.label}</span>
-                            {watch('handedness') === option.value && (
-                              <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
-                                <div className="w-2 h-2 rounded-full bg-white"></div>
-                              </div>
-                            )}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
+              {/* Bio Preview Block */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-sm font-semibold text-gray-700">Bio</h3>
+                  <span className="text-xs text-gray-500">Optional</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setTempBio(user?.bio || '')
+                    setIsBioModalOpen(true)
+                  }}
+                  className="w-full text-left p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 transition group"
+                >
+                  <p className="text-sm text-gray-600 group-hover:text-gray-800">
+                    {getBioPreview()}
+                  </p>
+                  <div className="flex items-center justify-end mt-2 text-blue-600 text-xs">
+                    <span>Edit bio</span>
+                    <ChevronRight className="w-4 h-4" />
                   </div>
+                </button>
+              </div>
+
+              {/* Intro Video Section */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-sm font-semibold text-gray-700">Intro Video</h3>
+                  <span className="text-xs text-gray-500">Optional</span>
                 </div>
 
-                {/* Basic Information */}
-                <div className="lg:col-span-2">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6">Personal Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        First Name *
-                      </label>
-                      <input
-                        {...register('firstName', { required: 'First name is required' })}
-                        type="text"
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
-                      />
-                      {errors.firstName && (
-                        <p className="text-sm text-red-600 mt-1">{errors.firstName.message}</p>
-                      )}
-                    </div>
+                {videoPreview ? (
+                  <div className="relative">
+                    <video
+                      src={videoPreview}
+                      controls
+                      className="w-full h-40 rounded-lg object-cover bg-black"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeVideo}
+                      className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                    {videoUploading && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <Video className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+                    <p className="text-xs text-gray-500 mb-3">
+                      Upload a short intro video (max 50MB)
+                    </p>
+                    <input
+                      type="file"
+                      ref={videoInputRef}
+                      onChange={handleVideoChange}
+                      accept="video/*"
+                      className="hidden"
+                      id="video-upload"
+                    />
+                    <label
+                      htmlFor="video-upload"
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 cursor-pointer transition"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload Video
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Last Name *
-                      </label>
-                      <input
-                        {...register('lastName', { required: 'Last name is required' })}
-                        type="text"
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
-                      />
-                      {errors.lastName && (
-                        <p className="text-sm text-red-600 mt-1">{errors.lastName.message}</p>
-                      )}
+            {/* RIGHT SIDE - Basic Info and Pickleball Info Sections */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Basic Information Section */}
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-b">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <User className="w-5 h-5 mr-2 text-blue-500" />
+                    Basic Information
+                  </h3>
+                  {!isEditingBasicInfo ? (
+                    <button
+                      onClick={() => setIsEditingBasicInfo(true)}
+                      className="flex items-center space-x-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      <span>Edit</span>
+                    </button>
+                  ) : (
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => {
+                          setIsEditingBasicInfo(false)
+                          basicInfoForm.reset()
+                        }}
+                        className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={basicInfoForm.handleSubmit(handleSaveBasicInfo)}
+                        disabled={savingBasicInfo}
+                        className="flex items-center space-x-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                      >
+                        {savingBasicInfo ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>Saving...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            <span>Save</span>
+                          </>
+                        )}
+                      </button>
                     </div>
+                  )}
+                </div>
 
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Email *
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                       <input
-                        {...register('email', { 
-                          required: 'Email is required',
-                          pattern: {
-                            value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                            message: 'Invalid email address'
-                          }
-                        })}
+                        {...basicInfoForm.register('firstName', { required: 'First name is required' })}
+                        type="text"
+                        disabled={!isEditingBasicInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                      <input
+                        {...basicInfoForm.register('lastName', { required: 'Last name is required' })}
+                        type="text"
+                        disabled={!isEditingBasicInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input
+                        {...basicInfoForm.register('email')}
                         type="email"
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
+                        disabled={!isEditingBasicInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
                       />
-                      {errors.email && (
-                        <p className="text-sm text-red-600 mt-1">{errors.email.message}</p>
-                      )}
                     </div>
-
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Gender
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                      <input
+                        {...basicInfoForm.register('phone')}
+                        type="tel"
+                        disabled={!isEditingBasicInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
+                        placeholder="(123) 456-7890"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
                       <select
-                        {...register('gender')}
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
+                        {...basicInfoForm.register('gender')}
+                        disabled={!isEditingBasicInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
                       >
                         <option value="">Select</option>
                         <option value="male">Male</option>
@@ -427,185 +544,145 @@ const Profile = () => {
                         <option value="prefer-not-to-say">Prefer not to say</option>
                       </select>
                     </div>
-
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Date of Birth
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
                       <input
-                        {...register('dob')}
+                        {...basicInfoForm.register('dob')}
                         type="date"
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
+                        disabled={!isEditingBasicInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
                       />
                     </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Phone Number
-                      </label>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
                       <input
-                        {...register('phone')}
-                        type="tel"
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
-                        placeholder="(123) 456-7890"
+                        {...basicInfoForm.register('address')}
+                        type="text"
+                        disabled={!isEditingBasicInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
+                        placeholder="123 Main St"
                       />
                     </div>
-                  </div>
-
-                  {/* Address Section */}
-                  <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Address</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Street Address
-                        </label>
-                        <input
-                          {...register('address')}
-                          type="text"
-                          disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
-                          placeholder="123 Main St"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          City
-                        </label>
-                        <input
-                          {...register('city')}
-                          type="text"
-                          disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          State/Province
-                        </label>
-                        <input
-                          {...register('state')}
-                          type="text"
-                          disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          ZIP/Postal Code
-                        </label>
-                        <input
-                          {...register('zipCode')}
-                          type="text"
-                          disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Country
-                        </label>
-                        <input
-                          {...register('country')}
-                          type="text"
-                          disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                      <input
+                        {...basicInfoForm.register('city')}
+                        type="text"
+                        disabled={!isEditingBasicInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">State/Province</label>
+                      <input
+                        {...basicInfoForm.register('state')}
+                        type="text"
+                        disabled={!isEditingBasicInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">ZIP/Postal Code</label>
+                      <input
+                        {...basicInfoForm.register('zipCode')}
+                        type="text"
+                        disabled={!isEditingBasicInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                      <input
+                        {...basicInfoForm.register('country')}
+                        type="text"
+                        disabled={!isEditingBasicInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
+                      />
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Pickleball Specific Information */}
-              <div className="border-t pt-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                  <Target className="w-6 h-6 mr-2 text-blue-500" />
-                  Pickleball Player Profile
-                </h3>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Left Column - Player Info */}
-                  <div className="space-y-6">
+              {/* Pickleball Information Section */}
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-b">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <Target className="w-5 h-5 mr-2 text-purple-500" />
+                    Pickleball Information
+                  </h3>
+                  {!isEditingPickleballInfo ? (
+                    <button
+                      onClick={() => setIsEditingPickleballInfo(true)}
+                      className="flex items-center space-x-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      <span>Edit</span>
+                    </button>
+                  ) : (
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => {
+                          setIsEditingPickleballInfo(false)
+                          pickleballForm.reset()
+                        }}
+                        className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={pickleballForm.handleSubmit(handleSavePickleballInfo)}
+                        disabled={savingPickleballInfo}
+                        className="flex items-center space-x-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                      >
+                        {savingPickleballInfo ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>Saving...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            <span>Save</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Experience Level *
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Experience Level</label>
                       <select
-                        {...register('experienceLevel', { required: 'Experience level is required' })}
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
+                        {...pickleballForm.register('experienceLevel')}
+                        disabled={!isEditingPickleballInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
                       >
                         <option value="">Select your level</option>
                         {experienceLevels.map(level => (
                           <option key={level} value={level}>{level}</option>
                         ))}
                       </select>
-                      {errors.experienceLevel && (
-                        <p className="text-sm text-red-600 mt-1">{errors.experienceLevel.message}</p>
-                      )}
                     </div>
-
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Years Playing
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Years Playing</label>
                       <input
-                        {...register('yearsPlaying')}
+                        {...pickleballForm.register('yearsPlaying')}
                         type="number"
                         min="0"
                         max="50"
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
+                        disabled={!isEditingPickleballInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
                         placeholder="e.g., 3"
                       />
                     </div>
-
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Tournament Level
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Playing Style</label>
                       <select
-                        {...register('tournamentLevel')}
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
-                      >
-                        <option value="">Select tournament level</option>
-                        {tournamentLevels.map(level => (
-                          <option key={level} value={level}>{level}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Favorite Shot
-                      </label>
-                      <select
-                        {...register('favoriteShot')}
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
-                      >
-                        <option value="">Select favorite shot</option>
-                        {favoriteShots.map(shot => (
-                          <option key={shot} value={shot}>{shot}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Right Column - Playing Style & Equipment */}
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Playing Style
-                      </label>
-                      <select
-                        {...register('playingStyle')}
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
+                        {...pickleballForm.register('playingStyle')}
+                        disabled={!isEditingPickleballInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
                       >
                         <option value="">Select playing style</option>
                         {playingStyles.map(style => (
@@ -613,135 +690,126 @@ const Profile = () => {
                         ))}
                       </select>
                     </div>
-
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Paddle Brand
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tournament Level</label>
+                      <select
+                        {...pickleballForm.register('tournamentLevel')}
+                        disabled={!isEditingPickleballInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
+                      >
+                        <option value="">Select tournament level</option>
+                        {tournamentLevels.map(level => (
+                          <option key={level} value={level}>{level}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Favorite Shot</label>
+                      <select
+                        {...pickleballForm.register('favoriteShot')}
+                        disabled={!isEditingPickleballInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
+                      >
+                        <option value="">Select favorite shot</option>
+                        {favoriteShots.map(shot => (
+                          <option key={shot} value={shot}>{shot}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Paddle Brand</label>
                       <input
-                        {...register('paddleBrand')}
+                        {...pickleballForm.register('paddleBrand')}
                         type="text"
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
+                        disabled={!isEditingPickleballInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
                         placeholder="e.g., Selkirk, Joola, Paddletek"
                       />
                     </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Paddle Model
-                      </label>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Paddle Model</label>
                       <input
-                        {...register('paddleModel')}
+                        {...pickleballForm.register('paddleModel')}
                         type="text"
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
+                        disabled={!isEditingPickleballInfo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
                         placeholder="e.g., Vanguard Power Air"
                       />
                     </div>
                   </div>
                 </div>
               </div>
-
-              {/* Bio & Introduction Video */}
-              <div className="border-t pt-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                  <Heart className="w-6 h-6 mr-2 text-purple-500" />
-                  Personal Introduction
-                </h3>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Bio Section */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Bio / About Me *
-                    </label>
-                    <textarea
-                      {...register('bio', { 
-                        required: 'Bio is required',
-                        minLength: {
-                          value: 50,
-                          message: 'Bio should be at least 50 characters'
-                        },
-                        maxLength: {
-                          value: 1000,
-                          message: 'Bio should not exceed 1000 characters'
-                        }
-                      })}
-                      rows="6"
-                      disabled={!isEditing}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:cursor-not-allowed"
-                      placeholder="Tell us about yourself, your pickleball journey, and what you're looking for..."
-                    />
-                    {errors.bio && (
-                      <p className="text-sm text-red-600 mt-1">{errors.bio.message}</p>
-                    )}
-                    <p className="text-xs text-gray-500 mt-2">
-                      {watch('bio')?.length || 0}/1000 characters
-                    </p>
-                  </div>
-
-                  {/* Introduction Video */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Introduction Video (Optional)
-                    </label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                      {videoPreview ? (
-                        <div className="relative">
-                          <video
-                            src={videoPreview}
-                            controls
-                            className="w-full h-48 rounded-lg object-cover"
-                          />
-                          {isEditing && (
-                            <button
-                              type="button"
-                              onClick={removeVideo}
-                              className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full hover:bg-red-700"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-center">
-                          <Video className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                          <p className="text-gray-600 mb-4">
-                            Upload a short video introducing yourself (max 50MB)
-                          </p>
-                          {isEditing && (
-                            <>
-                              <input
-                                type="file"
-                                ref={videoInputRef}
-                                onChange={handleVideoChange}
-                                accept="video/*"
-                                className="hidden"
-                                id="video-upload"
-                              />
-                              <label
-                                htmlFor="video-upload"
-                                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 cursor-pointer"
-                              >
-                                <Upload className="w-4 h-4 mr-2" />
-                                Upload Video
-                              </label>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Max 2 minutes, 50MB. Share your story and playing style!
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </form>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Bio Edit Modal */}
+      {isBioModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+            <div
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+              onClick={() => setIsBioModalOpen(false)}
+            ></div>
+
+            <div className="relative inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <Heart className="w-5 h-5 mr-2 text-purple-500" />
+                    Edit Bio
+                  </h3>
+                  <button
+                    onClick={() => setIsBioModalOpen(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <textarea
+                  value={tempBio}
+                  onChange={(e) => setTempBio(e.target.value)}
+                  rows="6"
+                  maxLength={1000}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Tell us about yourself, your pickleball journey, and what you're looking for..."
+                />
+                <p className="text-xs text-gray-500 mt-2 text-right">
+                  {tempBio.length}/1000 characters
+                </p>
+              </div>
+
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
+                <button
+                  onClick={handleBioSave}
+                  disabled={savingBio}
+                  className="w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                >
+                  {savingBio ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Bio
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setIsBioModalOpen(false)}
+                  className="mt-3 sm:mt-0 w-full sm:w-auto inline-flex justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
