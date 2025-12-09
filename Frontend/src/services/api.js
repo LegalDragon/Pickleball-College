@@ -257,22 +257,24 @@ export const userApi = {
 // Asset Management API
 export const assetApi = {
   // Upload a single file
-  upload: (file, category = 'all', folder = null) => {
+  upload: (file, folder = 'image', objectType = null, objectId = null) => {
     const formData = new FormData();
     formData.append('file', file);
-    const params = new URLSearchParams({ category });
-    if (folder) params.append('folder', folder);
+    const params = new URLSearchParams({ folder });
+    if (objectType) params.append('objectType', objectType);
+    if (objectId) params.append('objectId', objectId);
     return api.post(`/assets/upload?${params.toString()}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
 
   // Upload multiple files
-  uploadMultiple: (files, category = 'all', folder = null) => {
+  uploadMultiple: (files, folder = 'image', objectType = null, objectId = null) => {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
-    const params = new URLSearchParams({ category });
-    if (folder) params.append('folder', folder);
+    const params = new URLSearchParams({ folder });
+    if (objectType) params.append('objectType', objectType);
+    if (objectId) params.append('objectId', objectId);
     return api.post(`/assets/upload-multiple?${params.toString()}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });

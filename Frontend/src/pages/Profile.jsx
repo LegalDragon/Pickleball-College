@@ -118,14 +118,15 @@ const Profile = () => {
       }
       reader.readAsDataURL(file)
 
-      // Upload to server using asset API
+      // Upload to server using user avatar API (links asset to user)
       setAvatarUploading(true)
       try {
-        const response = await assetApi.upload(file, 'avatars')
+        const response = await userApi.uploadAvatar(file)
         if (response.success && response.data) {
-          // Update user profile with new avatar URL
-          await userApi.updateProfile({ profileImageUrl: response.data.url })
-          updateUser({ ...user, avatar: response.data.url, profileImageUrl: response.data.url })
+          // Update local user with new avatar URL
+          const newAvatarUrl = response.data.avatarUrl
+          updateUser({ ...user, avatar: newAvatarUrl, profileImageUrl: newAvatarUrl })
+          setAvatarPreview(getAssetUrl(newAvatarUrl))
         } else {
           throw new Error(response.message || 'Upload failed')
         }
