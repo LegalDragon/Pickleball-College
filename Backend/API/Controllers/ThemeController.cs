@@ -286,7 +286,6 @@ public class ThemeController : ControllerBase
             }
 
             // Log activity
-            var currentUserId = GetCurrentUserId();
             if (currentUserId.HasValue)
             {
                 var log = new ActivityLog
@@ -369,7 +368,6 @@ public class ThemeController : ControllerBase
             }
 
             // Log activity
-            var currentUserId = GetCurrentUserId();
             if (currentUserId.HasValue)
             {
                 var log = new ActivityLog
