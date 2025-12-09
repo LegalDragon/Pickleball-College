@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { useAuth } from '../contexts/AuthContext'
 import { userApi, assetApi, getAssetUrl } from '../services/api'
+import VideoUploadModal from '../components/ui/VideoUploadModal'
 import {
   User, Camera, Video, MapPin, Phone, Calendar,
   Edit2, Save, Upload, X, Play, Award, Target,
@@ -15,9 +16,7 @@ const Profile = () => {
   const [avatarPreview, setAvatarPreview] = useState(null)
   const [videoPreview, setVideoPreview] = useState(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
-  const [videoUploading, setVideoUploading] = useState(false)
   const fileInputRef = useRef(null)
-  const videoInputRef = useRef(null)
 
   // Separate editing states for each section
   const [isEditingBasicInfo, setIsEditingBasicInfo] = useState(false)
@@ -29,6 +28,9 @@ const Profile = () => {
   const [isBioModalOpen, setIsBioModalOpen] = useState(false)
   const [tempBio, setTempBio] = useState('')
   const [savingBio, setSavingBio] = useState(false)
+
+  // Video modal state
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
 
   // Separate forms for each section
   const basicInfoForm = useForm({
@@ -198,53 +200,52 @@ const Profile = () => {
     }
   }
 
-  // Handle video upload using asset API
-  const handleVideoChange = async (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      if (file.size > 100 * 1024 * 1024) {
-        alert('Video size should be less than 100MB')
-        return
-      }
-      if (!file.type.includes('video')) {
-        alert('Please select a video file')
-        return
-      }
+  // Handle video save from modal
+  const handleVideoSave = async ({ url, type }) => {
+    try {
+      // Update user profile with new video URL
+      await userApi.updateProfile({ introVideo: url })
+      updateUser({ ...user, introVideo: url })
 
-      const localVideoUrl = URL.createObjectURL(file)
-      setVideoPreview(localVideoUrl)
-
-      setVideoUploading(true)
-      try {
-        const response = await assetApi.upload(file, 'videos')
-        if (response.success && response.data) {
-          // Update user profile with new video URL
-          await userApi.updateProfile({ introVideo: response.data.url })
-          updateUser({ ...user, introVideo: response.data.url })
-          // Update preview to use server URL
-          setVideoPreview(getAssetUrl(response.data.url))
-        } else {
-          throw new Error(response.message || 'Upload failed')
-        }
-      } catch (error) {
-        console.error('Video upload error:', error)
-        alert('Failed to upload video: ' + (error.message || 'Unknown error'))
-        setVideoPreview(getAssetUrl(user?.introVideo) || null)
-      } finally {
-        setVideoUploading(false)
+      // Update preview based on type
+      if (type === 'url') {
+        setVideoPreview(url) // External URL
+      } else {
+        setVideoPreview(getAssetUrl(url)) // Local file
       }
+    } catch (error) {
+      console.error('Video save error:', error)
+      alert('Failed to save video: ' + (error.message || 'Unknown error'))
     }
+  }
+
+  // Check if video URL is external (YouTube, TikTok, etc.)
+  const isExternalVideoUrl = (url) => {
+    if (!url) return false
+    const externalPatterns = ['youtube.com', 'youtu.be', 'tiktok.com', 'vimeo.com', 'facebook.com', 'instagram.com']
+    return externalPatterns.some(pattern => url.includes(pattern))
+  }
+
+  // Get YouTube embed URL
+  const getVideoEmbedUrl = (url) => {
+    if (!url) return null
+    if (url.includes('youtube.com/watch')) {
+      const videoId = new URL(url).searchParams.get('v')
+      return `https://www.youtube.com/embed/${videoId}`
+    }
+    if (url.includes('youtu.be/')) {
+      const videoId = url.split('youtu.be/')[1]?.split('?')[0]
+      return `https://www.youtube.com/embed/${videoId}`
+    }
+    return null
   }
 
   const removeVideo = async () => {
     const oldVideoUrl = user?.introVideo
     setVideoPreview(null)
-    if (videoInputRef.current) {
-      videoInputRef.current.value = ''
-    }
     try {
-      // Delete video file from server
-      if (oldVideoUrl) {
+      // Delete video file from server (only if it's a local file, not external URL)
+      if (oldVideoUrl && !isExternalVideoUrl(oldVideoUrl)) {
         await assetApi.delete(oldVideoUrl)
       }
       // Update user profile
@@ -474,47 +475,69 @@ const Profile = () => {
                   <span className="text-xs text-gray-500">Optional</span>
                 </div>
 
-                {videoPreview ? (
+                {videoPreview || user?.introVideo ? (
                   <div className="relative">
-                    <video
-                      src={videoPreview}
-                      controls
-                      className="w-full h-40 rounded-lg object-cover bg-black"
-                    />
-                    <button
-                      type="button"
-                      onClick={removeVideo}
-                      className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                    {videoUploading && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-                      </div>
+                    {/* Check if it's an external URL (YouTube, etc.) */}
+                    {isExternalVideoUrl(videoPreview || user?.introVideo) ? (
+                      getVideoEmbedUrl(videoPreview || user?.introVideo) ? (
+                        <iframe
+                          src={getVideoEmbedUrl(videoPreview || user?.introVideo)}
+                          className="w-full h-40 rounded-lg"
+                          allowFullScreen
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        />
+                      ) : (
+                        <div className="w-full h-40 rounded-lg bg-gray-200 flex items-center justify-center">
+                          <a
+                            href={videoPreview || user?.introVideo}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline flex items-center"
+                          >
+                            <Play className="w-5 h-5 mr-2" />
+                            Open Video
+                          </a>
+                        </div>
+                      )
+                    ) : (
+                      <video
+                        src={videoPreview || getAssetUrl(user?.introVideo)}
+                        controls
+                        className="w-full h-40 rounded-lg object-cover bg-black"
+                      />
                     )}
+                    <div className="absolute top-2 right-2 flex space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsVideoModalOpen(true)}
+                        className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition"
+                        title="Change video"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={removeVideo}
+                        className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition"
+                        title="Remove video"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <div
+                    onClick={() => setIsVideoModalOpen(true)}
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition"
+                  >
                     <Video className="w-10 h-10 text-gray-400 mx-auto mb-3" />
                     <p className="text-xs text-gray-500 mb-3">
-                      Upload a short intro video (max 50MB)
+                      Add a video from YouTube, TikTok, or upload a file
                     </p>
-                    <input
-                      type="file"
-                      ref={videoInputRef}
-                      onChange={handleVideoChange}
-                      accept="video/*"
-                      className="hidden"
-                      id="video-upload"
-                    />
-                    <label
-                      htmlFor="video-upload"
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 cursor-pointer transition"
-                    >
+                    <span className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition">
                       <Upload className="w-4 h-4 mr-2" />
-                      Upload Video
-                    </label>
+                      Add Video
+                    </span>
                   </div>
                 )}
               </div>
@@ -888,6 +911,18 @@ const Profile = () => {
           </div>
         </div>
       )}
+
+      {/* Video Upload Modal */}
+      <VideoUploadModal
+        isOpen={isVideoModalOpen}
+        onClose={() => setIsVideoModalOpen(false)}
+        onSave={handleVideoSave}
+        currentVideo={user?.introVideo}
+        objectType="UserIntro"
+        objectId={user?.id}
+        title="Add Intro Video"
+        maxSizeMB={100}
+      />
     </div>
   )
 }
