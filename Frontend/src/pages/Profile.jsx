@@ -36,7 +36,7 @@ const Profile = () => {
       lastName: '',
       email: '',
       gender: '',
-      dob: '',
+      dateOfBirth: '',
       phone: '',
       address: '',
       city: '',
@@ -64,12 +64,21 @@ const Profile = () => {
   // Load user data into forms
   useEffect(() => {
     if (user) {
+      // Format dateOfBirth for input type="date" (YYYY-MM-DD)
+      let formattedDob = ''
+      if (user.dateOfBirth) {
+        const date = new Date(user.dateOfBirth)
+        if (!isNaN(date.getTime())) {
+          formattedDob = date.toISOString().split('T')[0]
+        }
+      }
+
       basicInfoForm.reset({
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         email: user.email || '',
         gender: user.gender || '',
-        dob: user.dob || '',
+        dateOfBirth: formattedDob,
         phone: user.phone || '',
         address: user.address || '',
         city: user.city || '',
@@ -566,7 +575,7 @@ const Profile = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
                       <input
-                        {...basicInfoForm.register('dob')}
+                        {...basicInfoForm.register('dateOfBirth')}
                         type="date"
                         disabled={!isEditingBasicInfo}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50 disabled:text-gray-600"
