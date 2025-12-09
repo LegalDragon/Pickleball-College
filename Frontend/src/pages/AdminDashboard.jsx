@@ -6,7 +6,7 @@ import {
   Users, BookOpen, Calendar, DollarSign, Search, Edit2, Trash2,
   ChevronLeft, ChevronRight, Filter, MoreVertical, Eye, X,
   Shield, GraduationCap, User, CheckCircle, XCircle, Save,
-  Palette, Upload, RefreshCw, Image
+  Palette, Upload, RefreshCw, Image, Swatches, Check
 } from 'lucide-react'
 
 const AdminDashboard = () => {
@@ -29,6 +29,8 @@ const AdminDashboard = () => {
 
   // Theme state
   const [themeSettings, setThemeSettings] = useState(null)
+  const [themePresets, setThemePresets] = useState([])
+  const [loadingPresets, setLoadingPresets] = useState(false)
   const [savingTheme, setSavingTheme] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [uploadingFavicon, setUploadingFavicon] = useState(false)
@@ -97,6 +99,40 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false)
     }
+
+    // Also fetch presets
+    fetchThemePresets()
+  }
+
+  // Fetch theme presets
+  const fetchThemePresets = async () => {
+    setLoadingPresets(true)
+    try {
+      const response = await themeApi.getPresets()
+      if (response.success && response.data) {
+        setThemePresets(response.data)
+      } else if (Array.isArray(response)) {
+        setThemePresets(response)
+      }
+    } catch (error) {
+      console.error('Error fetching theme presets:', error)
+      setThemePresets([])
+    } finally {
+      setLoadingPresets(false)
+    }
+  }
+
+  // Apply preset to theme settings
+  const handleApplyPreset = (preset) => {
+    setThemeSettings(prev => ({
+      ...prev,
+      primaryColor: preset.primaryColor,
+      primaryDarkColor: preset.primaryDarkColor,
+      primaryLightColor: preset.primaryLightColor,
+      accentColor: preset.accentColor,
+      accentDarkColor: preset.accentDarkColor,
+      accentLightColor: preset.accentLightColor
+    }))
   }
 
   // Default theme values
@@ -715,6 +751,87 @@ const AdminDashboard = () => {
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Theme Presets Section */}
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Swatches className="w-5 h-5 mr-2 text-indigo-500" />
+                      Theme Presets
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Choose a preset to quickly apply a color scheme, then customize as needed.
+                    </p>
+
+                    {loadingPresets ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                        <span className="ml-2 text-gray-500">Loading presets...</span>
+                      </div>
+                    ) : themePresets.length > 0 ? (
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {themePresets.map(preset => {
+                          const isActive =
+                            themeSettings?.primaryColor?.toLowerCase() === preset.primaryColor?.toLowerCase() &&
+                            themeSettings?.accentColor?.toLowerCase() === preset.accentColor?.toLowerCase()
+
+                          return (
+                            <button
+                              key={preset.presetId}
+                              onClick={() => handleApplyPreset(preset)}
+                              className={`relative p-4 rounded-xl border-2 transition-all hover:shadow-md ${
+                                isActive
+                                  ? 'border-indigo-500 ring-2 ring-indigo-200'
+                                  : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                            >
+                              {isActive && (
+                                <div className="absolute top-2 right-2 w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center">
+                                  <Check className="w-3 h-3 text-white" />
+                                </div>
+                              )}
+
+                              {/* Color Preview */}
+                              <div className="flex space-x-1 mb-3">
+                                <div
+                                  className="w-8 h-8 rounded-lg shadow-sm"
+                                  style={{ backgroundColor: preset.primaryColor }}
+                                  title="Primary"
+                                />
+                                <div
+                                  className="w-8 h-8 rounded-lg shadow-sm"
+                                  style={{ backgroundColor: preset.primaryDarkColor }}
+                                  title="Primary Dark"
+                                />
+                                <div
+                                  className="w-8 h-8 rounded-lg shadow-sm"
+                                  style={{ backgroundColor: preset.accentColor }}
+                                  title="Accent"
+                                />
+                              </div>
+
+                              <div className="text-left">
+                                <p className="font-medium text-gray-900 text-sm">{preset.presetName}</p>
+                                {preset.description && (
+                                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{preset.description}</p>
+                                )}
+                              </div>
+
+                              {preset.isDefault && (
+                                <span className="absolute bottom-2 right-2 text-xs text-indigo-600 font-medium">
+                                  Default
+                                </span>
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <Swatches className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                        <p>No theme presets available</p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Colors Section */}
