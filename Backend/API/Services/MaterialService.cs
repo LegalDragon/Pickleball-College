@@ -16,11 +16,10 @@ public class MaterialService : IMaterialService
         _stripeService = stripeService;
     }
 
-    public async Task<MaterialDto> CreateMaterialAsync(Guid coachId, CreateMaterialRequest request, string? videoUrl, string? thumbnailUrl)
+    public async Task<MaterialDto> CreateMaterialAsync(int coachId, CreateMaterialRequest request, string? videoUrl, string? thumbnailUrl)
     {
         var material = new TrainingMaterial
         {
-            Id = Guid.NewGuid(),
             CoachId = coachId,
             Title = request.Title,
             Description = request.Description,
@@ -39,7 +38,7 @@ public class MaterialService : IMaterialService
         return await GetMaterialDtoAsync(material.Id);
     }
 
-    public async Task<PurchaseResult> PurchaseMaterialAsync(Guid studentId, Guid materialId)
+    public async Task<PurchaseResult> PurchaseMaterialAsync(int studentId, int materialId)
     {
         var material = await _context.TrainingMaterials
             .Include(m => m.Coach)
@@ -56,7 +55,6 @@ public class MaterialService : IMaterialService
         // Create purchase record
         var purchase = new MaterialPurchase
         {
-            Id = Guid.NewGuid(),
             StudentId = studentId,
             MaterialId = materialId,
             PurchasePrice = material.Price,
@@ -103,7 +101,7 @@ public class MaterialService : IMaterialService
             .ToListAsync();
     }
 
-    public async Task<List<MaterialDto>> GetCoachMaterialsAsync(Guid coachId)
+    public async Task<List<MaterialDto>> GetCoachMaterialsAsync(int coachId)
     {
         return await _context.TrainingMaterials
             .Where(m => m.CoachId == coachId)
@@ -129,12 +127,12 @@ public class MaterialService : IMaterialService
             .ToListAsync();
     }
 
-    public async Task<MaterialDto> GetMaterialAsync(Guid materialId)
+    public async Task<MaterialDto> GetMaterialAsync(int materialId)
     {
         return await GetMaterialDtoAsync(materialId);
     }
 
-    private async Task<MaterialDto> GetMaterialDtoAsync(Guid materialId)
+    private async Task<MaterialDto> GetMaterialDtoAsync(int materialId)
     {
         return await _context.TrainingMaterials
             .Where(m => m.Id == materialId)
