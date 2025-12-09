@@ -11,6 +11,7 @@ import {
 const Profile = () => {
   const { user, updateUser } = useAuth()
   const [loading, setLoading] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(true)
   const [avatarPreview, setAvatarPreview] = useState(null)
   const [videoPreview, setVideoPreview] = useState(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
@@ -61,9 +62,29 @@ const Profile = () => {
   // Local state for handedness
   const [handedness, setHandedness] = useState('')
 
+  // Fetch profile data from API on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setProfileLoading(true)
+        const response = await userApi.getProfile()
+        if (response.success && response.data) {
+          // Update auth context with fresh profile data
+          updateUser(response.data)
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error)
+      } finally {
+        setProfileLoading(false)
+      }
+    }
+    fetchProfile()
+  }, [])
+
   // Load user data into forms
   useEffect(() => {
     if (user) {
+      setProfileLoading(false)
       // Format dateOfBirth for input type="date" (YYYY-MM-DD)
       let formattedDob = ''
       if (user.dateOfBirth) {
@@ -238,8 +259,13 @@ const Profile = () => {
   const handleSaveBasicInfo = async (data) => {
     setSavingBasicInfo(true)
     try {
-      await userApi.updateProfile(data)
-      updateUser({ ...user, ...data })
+      // Handle optional dateOfBirth - convert empty string to null
+      const profileData = {
+        ...data,
+        dateOfBirth: data.dateOfBirth || null
+      }
+      await userApi.updateProfile(profileData)
+      updateUser({ ...user, ...profileData })
       setIsEditingBasicInfo(false)
     } catch (error) {
       console.error('Basic info update error:', error)
@@ -307,6 +333,25 @@ const Profile = () => {
       return bio.substring(0, 50) + '...'
     }
     return bio || 'No bio added yet...'
+  }
+
+  // Show loading state while fetching profile
+  if (profileLoading && !user) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-t-2xl px-6 py-8">
+            <h1 className="text-3xl font-bold text-white">My Profile</h1>
+            <p className="text-blue-100 mt-2">Loading your profile...</p>
+          </div>
+          <div className="bg-white rounded-b-2xl shadow-xl p-12">
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
