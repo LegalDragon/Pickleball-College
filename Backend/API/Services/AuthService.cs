@@ -115,7 +115,6 @@ public class AuthService : IAuthService
         var passwordHash = HashPassword(request.Password );
         var user = new User
         {
-            Id = Guid.NewGuid(),
             Email = request.Email,
             PasswordHash = passwordHash,
             FirstName = request.FirstName,

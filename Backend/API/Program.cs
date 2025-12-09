@@ -5,6 +5,7 @@ using System.Text;
 using Pickleball.College.Database;
 using Pickleball.College.Services;
 using Pickleball.College.Models.Entities;
+using Pickleball.College.Models.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +13,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Configuration
+builder.Services.Configure<FileStorageOptions>(
+    builder.Configuration.GetSection(FileStorageOptions.SectionName));
 
 // Database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -35,8 +40,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 // Services
+builder.Services.AddScoped<IAssetService, AssetService>();
 builder.Services.AddScoped<IMaterialService, MaterialService>();
-
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<IFileStorageService, AwsS3StorageService>();
 builder.Services.AddScoped<IStripeService, StripeService>();
@@ -64,6 +69,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("ReactClient");
+app.UseStaticFiles(); // Enable serving static files from wwwroot
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

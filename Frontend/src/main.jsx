@@ -9,7 +9,6 @@ import Navigation from './components/ui/Navigation' // Import here
 import Footer from './components/landing/Footer'; // Make sure this is imported
 import App from './App'
 import './styles/globals.css'
-import './styles/theme.css'
 
 const queryClient = new QueryClient()
 

@@ -1,6 +1,28 @@
 import axios from 'axios'
 
-const API_BASE_URL = 'https://localhost:7009/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://localhost:7009/api'
+
+// Helper function to get full asset URL (for avatars, images, etc.)
+export const getAssetUrl = (path) => {
+  if (!path) return null
+  // If path is already a full URL, return as-is
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path
+  }
+  // If path starts with /api, replace with API_BASE_URL
+  if (path.startsWith('/api/')) {
+    return `${API_BASE_URL}${path.substring(4)}`
+  }
+  // If path starts with /, prepend API_BASE_URL
+  if (path.startsWith('/')) {
+    return `${API_BASE_URL}${path}`
+  }
+  // Otherwise, return as-is
+  return path
+}
+
+// Export API_BASE_URL for direct use if needed
+export { API_BASE_URL }
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -167,6 +189,111 @@ export const testApi = {
   testAuth: () => api.get('/auth/test'),
   testMaterials: () => api.get('/materials/test'),
   testSessions: () => api.get('/sessions/test')
+}
+
+// Theme Management API
+export const themeApi = {
+  // Get active theme (public - no auth required)
+  getActive: () => api.get('/theme/active'),
+
+  // Get theme settings (admin only)
+  getCurrent: () => api.get('/theme'),
+
+  // Update theme settings (admin only)
+  update: (data) => api.put('/theme', data),
+
+  // Upload logo (admin only)
+  uploadLogo: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/theme/logo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  // Upload favicon (admin only)
+  uploadFavicon: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/theme/favicon', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  // Get theme presets (admin only)
+  getPresets: () => api.get('/theme/presets'),
+
+  // Reset theme to default (admin only)
+  reset: () => api.post('/theme/reset')
+}
+
+// User Profile API
+export const userApi = {
+  // Get current user's profile
+  getProfile: () => api.get('/users/profile'),
+
+  // Update current user's profile
+  updateProfile: (data) => api.put('/users/profile', data),
+
+  // Upload avatar
+  uploadAvatar: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/users/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  // Delete avatar
+  deleteAvatar: () => api.delete('/users/avatar'),
+
+  // Get all users (admin only)
+  getAllUsers: () => api.get('/users'),
+
+  // Update user by ID (admin only)
+  updateUser: (id, data) => api.put(`/users/${id}`, data)
+}
+
+// Content Types API
+export const contentTypesApi = {
+  // Get all active content types
+  getAll: () => api.get('/contenttypes'),
+
+  // Get content type by code
+  getByCode: (code) => api.get(`/contenttypes/${code}`)
+}
+
+// Asset Management API
+export const assetApi = {
+  // Upload a single file
+  upload: (file, folder = 'image', objectType = null, objectId = null) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const params = new URLSearchParams({ folder });
+    if (objectType) params.append('objectType', objectType);
+    if (objectId) params.append('objectId', objectId);
+    return api.post(`/assets/upload?${params.toString()}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  // Upload multiple files
+  uploadMultiple: (files, folder = 'image', objectType = null, objectId = null) => {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    const params = new URLSearchParams({ folder });
+    if (objectType) params.append('objectType', objectType);
+    if (objectId) params.append('objectId', objectId);
+    return api.post(`/assets/upload-multiple?${params.toString()}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  // Delete a file by URL
+  delete: (url) => api.delete(`/assets?url=${encodeURIComponent(url)}`),
+
+  // Get allowed file types
+  getAllowedTypes: () => api.get('/assets/allowed-types')
 }
 
 export default api
