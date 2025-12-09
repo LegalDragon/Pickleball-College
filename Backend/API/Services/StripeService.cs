@@ -19,6 +19,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ThemeSettings> ThemeSettings { get; set; }
     public DbSet<ThemePreset> ThemePresets { get; set; }
     public DbSet<ActivityLog> ActivityLogs { get; set; }
+    public DbSet<Asset> Assets { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

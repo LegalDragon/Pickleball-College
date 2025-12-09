@@ -217,7 +217,7 @@ public class UsersController : ControllerBase
             }
 
             // Upload new avatar using asset service
-            var result = await _assetService.UploadFileAsync(file, "avatars");
+            var result = await _assetService.UploadFileAsync(file, "avatars", userId);
             if (!result.Success)
             {
                 return BadRequest(new ApiResponse<AvatarResponse>

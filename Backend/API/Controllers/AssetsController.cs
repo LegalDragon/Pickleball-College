@@ -34,6 +34,38 @@ public class AssetsController : ControllerBase
     }
 
     /// <summary>
+    /// Get an asset by its key (serves the file)
+    /// </summary>
+    /// <param name="assetKey">The unique asset key</param>
+    [AllowAnonymous]
+    [HttpGet("{assetKey}")]
+    public async Task<IActionResult> GetAsset(string assetKey)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(assetKey))
+            {
+                return BadRequest("Asset key is required");
+            }
+
+            var (stream, contentType, fileName) = await _assetService.GetAssetStreamAsync(assetKey);
+
+            if (stream == null)
+            {
+                return NotFound("Asset not found");
+            }
+
+            // Return the file with appropriate content type
+            return File(stream, contentType ?? "application/octet-stream", fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving asset: {AssetKey}", assetKey);
+            return StatusCode(500, "An error occurred while retrieving the asset");
+        }
+    }
+
+    /// <summary>
     /// Upload a single file
     /// </summary>
     /// <param name="file">The file to upload</param>
@@ -55,7 +87,7 @@ public class AssetsController : ControllerBase
                 });
             }
 
-            var result = await _assetService.UploadFileAsync(file, category);
+            var result = await _assetService.UploadFileAsync(file, category, userId);
 
             if (!result.Success)
             {
@@ -145,7 +177,7 @@ public class AssetsController : ControllerBase
 
             foreach (var file in files)
             {
-                var result = await _assetService.UploadFileAsync(file, category);
+                var result = await _assetService.UploadFileAsync(file, category, userId);
 
                 if (result.Success)
                 {

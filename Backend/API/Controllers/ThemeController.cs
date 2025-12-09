@@ -264,8 +264,10 @@ public class ThemeController : ControllerBase
                 await _assetService.DeleteFileAsync(theme.LogoUrl);
             }
 
+            var currentUserId = GetCurrentUserId();
+
             // Upload new logo using asset service
-            var result = await _assetService.UploadFileAsync(file, "theme");
+            var result = await _assetService.UploadFileAsync(file, "theme", currentUserId);
             if (!result.Success)
             {
                 return BadRequest(new ApiResponse<UploadResponse>
@@ -345,8 +347,10 @@ public class ThemeController : ControllerBase
                 await _assetService.DeleteFileAsync(theme.FaviconUrl);
             }
 
+            var currentUserId = GetCurrentUserId();
+
             // Upload new favicon using asset service
-            var result = await _assetService.UploadFileAsync(file, "theme");
+            var result = await _assetService.UploadFileAsync(file, "theme", currentUserId);
             if (!result.Success)
             {
                 return BadRequest(new ApiResponse<UploadResponse>
