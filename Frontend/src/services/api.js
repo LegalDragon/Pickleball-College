@@ -169,4 +169,40 @@ export const testApi = {
   testSessions: () => api.get('/sessions/test')
 }
 
+// Theme Management API
+export const themeApi = {
+  // Get active theme (public - no auth required)
+  getActive: () => api.get('/theme/active'),
+
+  // Get theme settings (admin only)
+  getCurrent: () => api.get('/theme'),
+
+  // Update theme settings (admin only)
+  update: (data) => api.put('/theme', data),
+
+  // Upload logo (admin only)
+  uploadLogo: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/theme/logo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  // Upload favicon (admin only)
+  uploadFavicon: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/theme/favicon', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  // Get theme presets (admin only)
+  getPresets: () => api.get('/theme/presets'),
+
+  // Reset theme to default (admin only)
+  reset: () => api.post('/theme/reset')
+}
+
 export default api

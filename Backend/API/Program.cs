@@ -64,6 +64,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("ReactClient");
+app.UseStaticFiles(); // Enable serving static files from wwwroot
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
