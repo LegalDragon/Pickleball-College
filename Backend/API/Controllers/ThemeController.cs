@@ -5,6 +5,7 @@ using System.Security.Claims;
 using Pickleball.College.Database;
 using Pickleball.College.Models.Entities;
 using Pickleball.College.Models.DTOs;
+using Pickleball.College.Services;
 
 namespace Pickleball.College.API.Controllers;
 
@@ -13,13 +14,16 @@ namespace Pickleball.College.API.Controllers;
 public class ThemeController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
-    private readonly IWebHostEnvironment _environment;
+    private readonly IAssetService _assetService;
     private readonly ILogger<ThemeController> _logger;
 
-    public ThemeController(ApplicationDbContext context, IWebHostEnvironment environment, ILogger<ThemeController> logger)
+    public ThemeController(
+        ApplicationDbContext context,
+        IAssetService assetService,
+        ILogger<ThemeController> logger)
     {
         _context = context;
-        _environment = environment;
+        _assetService = assetService;
         _logger = logger;
     }
 
@@ -237,31 +241,16 @@ public class ThemeController : ControllerBase
     {
         try
         {
-            // Validate file
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".svg", ".webp" };
-            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-
-            if (!allowedExtensions.Contains(extension))
+            // Validate file using asset service
+            var validation = _assetService.ValidateFile(file, "theme");
+            if (!validation.IsValid)
             {
                 return BadRequest(new ApiResponse<UploadResponse>
                 {
                     Success = false,
-                    Message = "Invalid file type. Only JPG, PNG, SVG, and WEBP are allowed."
+                    Message = validation.ErrorMessage ?? "Invalid file"
                 });
             }
-
-            if (file.Length > 5 * 1024 * 1024) // 5MB
-            {
-                return BadRequest(new ApiResponse<UploadResponse>
-                {
-                    Success = false,
-                    Message = "File size must be less than 5MB"
-                });
-            }
-
-            // Create uploads directory
-            var uploadsPath = Path.Combine(_environment.WebRootPath ?? "wwwroot", "uploads", "theme");
-            Directory.CreateDirectory(uploadsPath);
 
             // Get current theme
             var theme = await _context.ThemeSettings
@@ -269,31 +258,27 @@ public class ThemeController : ControllerBase
                 .OrderByDescending(t => t.ThemeId)
                 .FirstOrDefaultAsync();
 
+            // Delete old logo if exists
             if (theme != null && !string.IsNullOrEmpty(theme.LogoUrl))
             {
-                // Delete old logo
-                var oldFilePath = Path.Combine(_environment.WebRootPath ?? "wwwroot", theme.LogoUrl.TrimStart('/'));
-                if (System.IO.File.Exists(oldFilePath))
-                {
-                    System.IO.File.Delete(oldFilePath);
-                }
+                await _assetService.DeleteFileAsync(theme.LogoUrl);
             }
 
-            // Save new logo
-            var fileName = $"logo_{Guid.NewGuid()}{extension}";
-            var filePath = Path.Combine(uploadsPath, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            // Upload new logo using asset service
+            var result = await _assetService.UploadFileAsync(file, "theme");
+            if (!result.Success)
             {
-                await file.CopyToAsync(stream);
+                return BadRequest(new ApiResponse<UploadResponse>
+                {
+                    Success = false,
+                    Message = result.ErrorMessage ?? "Upload failed"
+                });
             }
-
-            var logoUrl = $"/uploads/theme/{fileName}";
 
             // Update theme if exists
             if (theme != null)
             {
-                theme.LogoUrl = logoUrl;
+                theme.LogoUrl = result.Url;
                 theme.UpdatedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
             }
@@ -316,7 +301,7 @@ public class ThemeController : ControllerBase
             {
                 Success = true,
                 Message = "Logo uploaded successfully",
-                Data = new UploadResponse { Url = logoUrl }
+                Data = new UploadResponse { Url = result.Url! }
             });
         }
         catch (Exception ex)
@@ -337,31 +322,16 @@ public class ThemeController : ControllerBase
     {
         try
         {
-            // Validate file
-            var allowedExtensions = new[] { ".ico", ".png", ".svg" };
-            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-
-            if (!allowedExtensions.Contains(extension))
+            // Validate file using asset service
+            var validation = _assetService.ValidateFile(file, "theme");
+            if (!validation.IsValid)
             {
                 return BadRequest(new ApiResponse<UploadResponse>
                 {
                     Success = false,
-                    Message = "Invalid file type. Only ICO, PNG, and SVG are allowed."
+                    Message = validation.ErrorMessage ?? "Invalid file"
                 });
             }
-
-            if (file.Length > 1 * 1024 * 1024) // 1MB
-            {
-                return BadRequest(new ApiResponse<UploadResponse>
-                {
-                    Success = false,
-                    Message = "File size must be less than 1MB"
-                });
-            }
-
-            // Create uploads directory
-            var uploadsPath = Path.Combine(_environment.WebRootPath ?? "wwwroot", "uploads", "theme");
-            Directory.CreateDirectory(uploadsPath);
 
             // Get current theme
             var theme = await _context.ThemeSettings
@@ -369,31 +339,27 @@ public class ThemeController : ControllerBase
                 .OrderByDescending(t => t.ThemeId)
                 .FirstOrDefaultAsync();
 
+            // Delete old favicon if exists
             if (theme != null && !string.IsNullOrEmpty(theme.FaviconUrl))
             {
-                // Delete old favicon
-                var oldFilePath = Path.Combine(_environment.WebRootPath ?? "wwwroot", theme.FaviconUrl.TrimStart('/'));
-                if (System.IO.File.Exists(oldFilePath))
-                {
-                    System.IO.File.Delete(oldFilePath);
-                }
+                await _assetService.DeleteFileAsync(theme.FaviconUrl);
             }
 
-            // Save new favicon
-            var fileName = $"favicon_{Guid.NewGuid()}{extension}";
-            var filePath = Path.Combine(uploadsPath, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            // Upload new favicon using asset service
+            var result = await _assetService.UploadFileAsync(file, "theme");
+            if (!result.Success)
             {
-                await file.CopyToAsync(stream);
+                return BadRequest(new ApiResponse<UploadResponse>
+                {
+                    Success = false,
+                    Message = result.ErrorMessage ?? "Upload failed"
+                });
             }
-
-            var faviconUrl = $"/uploads/theme/{fileName}";
 
             // Update theme if exists
             if (theme != null)
             {
-                theme.FaviconUrl = faviconUrl;
+                theme.FaviconUrl = result.Url;
                 theme.UpdatedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
             }
@@ -416,7 +382,7 @@ public class ThemeController : ControllerBase
             {
                 Success = true,
                 Message = "Favicon uploaded successfully",
-                Data = new UploadResponse { Url = faviconUrl }
+                Data = new UploadResponse { Url = result.Url! }
             });
         }
         catch (Exception ex)

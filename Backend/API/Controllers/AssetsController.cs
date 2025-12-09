@@ -4,6 +4,7 @@ using System.Security.Claims;
 using Pickleball.College.Database;
 using Pickleball.College.Models.Entities;
 using Pickleball.College.Models.DTOs;
+using Pickleball.College.Services;
 
 namespace Pickleball.College.API.Controllers;
 
@@ -13,31 +14,16 @@ namespace Pickleball.College.API.Controllers;
 public class AssetsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
-    private readonly IWebHostEnvironment _environment;
+    private readonly IAssetService _assetService;
     private readonly ILogger<AssetsController> _logger;
 
-    // Allowed file types by category
-    private static readonly Dictionary<string, string[]> AllowedExtensions = new()
-    {
-        { "image", new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg" } },
-        { "video", new[] { ".mp4", ".webm", ".mov", ".avi" } },
-        { "document", new[] { ".pdf", ".doc", ".docx", ".txt", ".xlsx", ".xls", ".pptx", ".ppt" } },
-        { "all", new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".mp4", ".webm", ".mov", ".avi", ".pdf", ".doc", ".docx", ".txt", ".xlsx", ".xls", ".pptx", ".ppt" } }
-    };
-
-    // Max file sizes by category (in bytes)
-    private static readonly Dictionary<string, long> MaxFileSizes = new()
-    {
-        { "image", 10 * 1024 * 1024 },     // 10MB
-        { "video", 100 * 1024 * 1024 },    // 100MB
-        { "document", 25 * 1024 * 1024 },  // 25MB
-        { "all", 100 * 1024 * 1024 }       // 100MB
-    };
-
-    public AssetsController(ApplicationDbContext context, IWebHostEnvironment environment, ILogger<AssetsController> logger)
+    public AssetsController(
+        ApplicationDbContext context,
+        IAssetService assetService,
+        ILogger<AssetsController> logger)
     {
         _context = context;
-        _environment = environment;
+        _assetService = assetService;
         _logger = logger;
     }
 
@@ -51,13 +37,11 @@ public class AssetsController : ControllerBase
     /// Upload a single file
     /// </summary>
     /// <param name="file">The file to upload</param>
-    /// <param name="category">Category: image, video, document, or all (default: all)</param>
-    /// <param name="folder">Optional subfolder name</param>
+    /// <param name="category">Category: avatars, videos, theme, materials, or custom folder name</param>
     [HttpPost("upload")]
     public async Task<ActionResult<ApiResponse<AssetUploadResponse>>> UploadFile(
         IFormFile file,
-        [FromQuery] string category = "all",
-        [FromQuery] string? folder = null)
+        [FromQuery] string category = "image")
     {
         try
         {
@@ -71,66 +55,23 @@ public class AssetsController : ControllerBase
                 });
             }
 
-            // Validate file
-            if (file == null || file.Length == 0)
+            var result = await _assetService.UploadFileAsync(file, category);
+
+            if (!result.Success)
             {
                 return BadRequest(new ApiResponse<AssetUploadResponse>
                 {
                     Success = false,
-                    Message = "No file provided"
+                    Message = result.ErrorMessage ?? "Upload failed"
                 });
             }
-
-            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-            var categoryKey = category.ToLowerInvariant();
-
-            if (!AllowedExtensions.ContainsKey(categoryKey))
-            {
-                categoryKey = "all";
-            }
-
-            if (!AllowedExtensions[categoryKey].Contains(extension))
-            {
-                return BadRequest(new ApiResponse<AssetUploadResponse>
-                {
-                    Success = false,
-                    Message = $"Invalid file type. Allowed types for {categoryKey}: {string.Join(", ", AllowedExtensions[categoryKey])}"
-                });
-            }
-
-            var maxSize = MaxFileSizes[categoryKey];
-            if (file.Length > maxSize)
-            {
-                return BadRequest(new ApiResponse<AssetUploadResponse>
-                {
-                    Success = false,
-                    Message = $"File size exceeds maximum allowed ({maxSize / (1024 * 1024)}MB)"
-                });
-            }
-
-            // Determine upload path
-            var subFolder = string.IsNullOrEmpty(folder) ? categoryKey : folder;
-            var uploadsPath = Path.Combine(_environment.WebRootPath ?? "wwwroot", "uploads", subFolder);
-            Directory.CreateDirectory(uploadsPath);
-
-            // Generate unique filename
-            var fileName = $"{Guid.NewGuid()}{extension}";
-            var filePath = Path.Combine(uploadsPath, fileName);
-
-            // Save file
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
-
-            var assetUrl = $"/uploads/{subFolder}/{fileName}";
 
             // Log activity
             var log = new ActivityLog
             {
                 UserId = userId.Value,
                 ActivityType = "AssetUploaded",
-                Description = $"Uploaded {categoryKey} file: {file.FileName}"
+                Description = $"Uploaded {category} file: {file.FileName}"
             };
             _context.ActivityLogs.Add(log);
             await _context.SaveChangesAsync();
@@ -141,12 +82,12 @@ public class AssetsController : ControllerBase
                 Message = "File uploaded successfully",
                 Data = new AssetUploadResponse
                 {
-                    Url = assetUrl,
-                    FileName = fileName,
-                    OriginalFileName = file.FileName,
-                    FileSize = file.Length,
-                    ContentType = file.ContentType,
-                    Category = categoryKey
+                    Url = result.Url!,
+                    FileName = result.FileName!,
+                    OriginalFileName = result.OriginalFileName!,
+                    FileSize = result.FileSize,
+                    ContentType = result.ContentType!,
+                    Category = result.Category!
                 }
             });
         }
@@ -167,8 +108,7 @@ public class AssetsController : ControllerBase
     [HttpPost("upload-multiple")]
     public async Task<ActionResult<ApiResponse<List<AssetUploadResponse>>>> UploadMultipleFiles(
         List<IFormFile> files,
-        [FromQuery] string category = "all",
-        [FromQuery] string? folder = null)
+        [FromQuery] string category = "image")
     {
         try
         {
@@ -200,62 +140,28 @@ public class AssetsController : ControllerBase
                 });
             }
 
-            var categoryKey = category.ToLowerInvariant();
-            if (!AllowedExtensions.ContainsKey(categoryKey))
-            {
-                categoryKey = "all";
-            }
-
-            var subFolder = string.IsNullOrEmpty(folder) ? categoryKey : folder;
-            var uploadsPath = Path.Combine(_environment.WebRootPath ?? "wwwroot", "uploads", subFolder);
-            Directory.CreateDirectory(uploadsPath);
-
             var uploadedFiles = new List<AssetUploadResponse>();
             var errors = new List<string>();
 
             foreach (var file in files)
             {
-                try
+                var result = await _assetService.UploadFileAsync(file, category);
+
+                if (result.Success)
                 {
-                    var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-
-                    if (!AllowedExtensions[categoryKey].Contains(extension))
-                    {
-                        errors.Add($"{file.FileName}: Invalid file type");
-                        continue;
-                    }
-
-                    var maxSize = MaxFileSizes[categoryKey];
-                    if (file.Length > maxSize)
-                    {
-                        errors.Add($"{file.FileName}: File too large");
-                        continue;
-                    }
-
-                    var fileName = $"{Guid.NewGuid()}{extension}";
-                    var filePath = Path.Combine(uploadsPath, fileName);
-
-                    using (var stream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await file.CopyToAsync(stream);
-                    }
-
-                    var assetUrl = $"/uploads/{subFolder}/{fileName}";
-
                     uploadedFiles.Add(new AssetUploadResponse
                     {
-                        Url = assetUrl,
-                        FileName = fileName,
-                        OriginalFileName = file.FileName,
-                        FileSize = file.Length,
-                        ContentType = file.ContentType,
-                        Category = categoryKey
+                        Url = result.Url!,
+                        FileName = result.FileName!,
+                        OriginalFileName = result.OriginalFileName!,
+                        FileSize = result.FileSize,
+                        ContentType = result.ContentType!,
+                        Category = result.Category!
                     });
                 }
-                catch (Exception ex)
+                else
                 {
-                    _logger.LogError(ex, $"Error uploading file: {file.FileName}");
-                    errors.Add($"{file.FileName}: Upload failed");
+                    errors.Add($"{file.FileName}: {result.ErrorMessage}");
                 }
             }
 
@@ -323,28 +229,16 @@ public class AssetsController : ControllerBase
                 });
             }
 
-            // Security: Ensure the URL is within the uploads directory
-            if (!url.StartsWith("/uploads/"))
-            {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Invalid file URL"
-                });
-            }
+            var deleted = await _assetService.DeleteFileAsync(url);
 
-            var filePath = Path.Combine(_environment.WebRootPath ?? "wwwroot", url.TrimStart('/'));
-
-            if (!System.IO.File.Exists(filePath))
+            if (!deleted)
             {
                 return NotFound(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "File not found"
+                    Message = "File not found or could not be deleted"
                 });
             }
-
-            System.IO.File.Delete(filePath);
 
             // Log activity
             var log = new ActivityLog
@@ -380,15 +274,22 @@ public class AssetsController : ControllerBase
     [HttpGet("allowed-types")]
     public ActionResult<ApiResponse<Dictionary<string, AllowedFileTypeInfo>>> GetAllowedTypes()
     {
-        var result = AllowedExtensions.ToDictionary(
-            kvp => kvp.Key,
-            kvp => new AllowedFileTypeInfo
+        var categories = new[] { "avatars", "videos", "theme", "materials" };
+        var result = new Dictionary<string, AllowedFileTypeInfo>();
+
+        foreach (var category in categories)
+        {
+            var options = _assetService.GetCategoryOptions(category);
+            if (options != null)
             {
-                Extensions = kvp.Value.ToList(),
-                MaxSizeBytes = MaxFileSizes[kvp.Key],
-                MaxSizeMB = MaxFileSizes[kvp.Key] / (1024 * 1024)
+                result[category] = new AllowedFileTypeInfo
+                {
+                    Extensions = options.AllowedExtensions.ToList(),
+                    MaxSizeBytes = options.MaxSizeBytes,
+                    MaxSizeMB = options.MaxSizeMB
+                };
             }
-        );
+        }
 
         return Ok(new ApiResponse<Dictionary<string, AllowedFileTypeInfo>>
         {

@@ -5,6 +5,7 @@ using System.Security.Claims;
 using Pickleball.College.Database;
 using Pickleball.College.Models.Entities;
 using Pickleball.College.Models.DTOs;
+using Pickleball.College.Services;
 
 namespace Pickleball.College.API.Controllers;
 
@@ -14,13 +15,16 @@ namespace Pickleball.College.API.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
-    private readonly IWebHostEnvironment _environment;
+    private readonly IAssetService _assetService;
     private readonly ILogger<UsersController> _logger;
 
-    public UsersController(ApplicationDbContext context, IWebHostEnvironment environment, ILogger<UsersController> logger)
+    public UsersController(
+        ApplicationDbContext context,
+        IAssetService assetService,
+        ILogger<UsersController> logger)
     {
         _context = context;
-        _environment = environment;
+        _assetService = assetService;
         _logger = logger;
     }
 
@@ -184,40 +188,16 @@ public class UsersController : ControllerBase
                 });
             }
 
-            // Validate file
-            if (file == null || file.Length == 0)
+            // Validate file using asset service
+            var validation = _assetService.ValidateFile(file, "avatars");
+            if (!validation.IsValid)
             {
                 return BadRequest(new ApiResponse<AvatarResponse>
                 {
                     Success = false,
-                    Message = "No file provided"
+                    Message = validation.ErrorMessage ?? "Invalid file"
                 });
             }
-
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
-            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-
-            if (!allowedExtensions.Contains(extension))
-            {
-                return BadRequest(new ApiResponse<AvatarResponse>
-                {
-                    Success = false,
-                    Message = "Invalid file type. Only JPG, PNG, GIF, and WEBP are allowed."
-                });
-            }
-
-            if (file.Length > 5 * 1024 * 1024) // 5MB
-            {
-                return BadRequest(new ApiResponse<AvatarResponse>
-                {
-                    Success = false,
-                    Message = "File size must be less than 5MB"
-                });
-            }
-
-            // Create uploads directory
-            var uploadsPath = Path.Combine(_environment.WebRootPath ?? "wwwroot", "uploads", "avatars");
-            Directory.CreateDirectory(uploadsPath);
 
             // Get user
             var user = await _context.Users.FindAsync(userId.Value);
@@ -233,26 +213,22 @@ public class UsersController : ControllerBase
             // Delete old avatar if exists
             if (!string.IsNullOrEmpty(user.ProfileImageUrl))
             {
-                var oldFilePath = Path.Combine(_environment.WebRootPath ?? "wwwroot", user.ProfileImageUrl.TrimStart('/'));
-                if (System.IO.File.Exists(oldFilePath))
-                {
-                    System.IO.File.Delete(oldFilePath);
-                }
+                await _assetService.DeleteFileAsync(user.ProfileImageUrl);
             }
 
-            // Save new avatar with unique filename
-            var fileName = $"avatar_{userId.Value}_{Guid.NewGuid()}{extension}";
-            var filePath = Path.Combine(uploadsPath, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            // Upload new avatar using asset service
+            var result = await _assetService.UploadFileAsync(file, "avatars");
+            if (!result.Success)
             {
-                await file.CopyToAsync(stream);
+                return BadRequest(new ApiResponse<AvatarResponse>
+                {
+                    Success = false,
+                    Message = result.ErrorMessage ?? "Upload failed"
+                });
             }
-
-            var avatarUrl = $"/uploads/avatars/{fileName}";
 
             // Update user
-            user.ProfileImageUrl = avatarUrl;
+            user.ProfileImageUrl = result.Url;
             user.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
@@ -270,7 +246,7 @@ public class UsersController : ControllerBase
             {
                 Success = true,
                 Message = "Avatar uploaded successfully",
-                Data = new AvatarResponse { AvatarUrl = avatarUrl }
+                Data = new AvatarResponse { AvatarUrl = result.Url! }
             });
         }
         catch (Exception ex)
@@ -310,14 +286,10 @@ public class UsersController : ControllerBase
                 });
             }
 
-            // Delete avatar file if exists
+            // Delete avatar file using asset service
             if (!string.IsNullOrEmpty(user.ProfileImageUrl))
             {
-                var filePath = Path.Combine(_environment.WebRootPath ?? "wwwroot", user.ProfileImageUrl.TrimStart('/'));
-                if (System.IO.File.Exists(filePath))
-                {
-                    System.IO.File.Delete(filePath);
-                }
+                await _assetService.DeleteFileAsync(user.ProfileImageUrl);
             }
 
             user.ProfileImageUrl = null;

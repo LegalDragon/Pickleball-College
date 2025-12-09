@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { useAuth } from '../contexts/AuthContext'
-import { userApi } from '../services/api'
+import { userApi, assetApi } from '../services/api'
 import {
   User, Camera, Video, MapPin, Phone, Calendar,
   Edit2, Save, Upload, X, Play, Award, Target,
@@ -91,8 +91,10 @@ const Profile = () => {
       setHandedness(user.handedness || '')
       setTempBio(user.bio || '')
 
-      if (user.avatar) {
-        setAvatarPreview(user.avatar)
+      // Set avatar preview from either avatar or profileImageUrl
+      const avatarUrl = user.avatar || user.profileImageUrl
+      if (avatarUrl) {
+        setAvatarPreview(avatarUrl)
       }
       if (user.introVideo) {
         setVideoPreview(user.introVideo)
@@ -116,18 +118,22 @@ const Profile = () => {
       }
       reader.readAsDataURL(file)
 
-      // Upload to server
+      // Upload to server using asset API
       setAvatarUploading(true)
       try {
-        const response = await userApi.uploadAvatar(file)
-        if (response.data) {
-          updateUser({ ...user, avatar: response.data.avatarUrl })
+        const response = await assetApi.upload(file, 'avatars')
+        if (response.success && response.data) {
+          // Update user profile with new avatar URL
+          await userApi.updateProfile({ profileImageUrl: response.data.url })
+          updateUser({ ...user, avatar: response.data.url, profileImageUrl: response.data.url })
+        } else {
+          throw new Error(response.message || 'Upload failed')
         }
       } catch (error) {
         console.error('Avatar upload error:', error)
-        alert('Failed to upload avatar')
+        alert('Failed to upload avatar: ' + (error.message || 'Unknown error'))
         // Revert preview on error
-        setAvatarPreview(user?.avatar || null)
+        setAvatarPreview(user?.avatar || user?.profileImageUrl || null)
       } finally {
         setAvatarUploading(false)
       }
@@ -161,12 +167,12 @@ const Profile = () => {
     }
   }
 
-  // Handle video upload
+  // Handle video upload using asset API
   const handleVideoChange = async (e) => {
     const file = e.target.files[0]
     if (file) {
-      if (file.size > 50 * 1024 * 1024) {
-        alert('Video size should be less than 50MB')
+      if (file.size > 100 * 1024 * 1024) {
+        alert('Video size should be less than 100MB')
         return
       }
       if (!file.type.includes('video')) {
@@ -174,18 +180,24 @@ const Profile = () => {
         return
       }
 
-      const videoUrl = URL.createObjectURL(file)
-      setVideoPreview(videoUrl)
+      const localVideoUrl = URL.createObjectURL(file)
+      setVideoPreview(localVideoUrl)
 
       setVideoUploading(true)
       try {
-        const formData = new FormData()
-        formData.append('introVideo', file)
-        await userApi.updateProfile(formData)
-        // Update user context if needed
+        const response = await assetApi.upload(file, 'videos')
+        if (response.success && response.data) {
+          // Update user profile with new video URL
+          await userApi.updateProfile({ introVideo: response.data.url })
+          updateUser({ ...user, introVideo: response.data.url })
+          // Update preview to use server URL
+          setVideoPreview(response.data.url)
+        } else {
+          throw new Error(response.message || 'Upload failed')
+        }
       } catch (error) {
         console.error('Video upload error:', error)
-        alert('Failed to upload video')
+        alert('Failed to upload video: ' + (error.message || 'Unknown error'))
         setVideoPreview(user?.introVideo || null)
       } finally {
         setVideoUploading(false)
@@ -194,11 +206,17 @@ const Profile = () => {
   }
 
   const removeVideo = async () => {
+    const oldVideoUrl = user?.introVideo
     setVideoPreview(null)
     if (videoInputRef.current) {
       videoInputRef.current.value = ''
     }
     try {
+      // Delete video file from server
+      if (oldVideoUrl) {
+        await assetApi.delete(oldVideoUrl)
+      }
+      // Update user profile
       await userApi.updateProfile({ introVideo: null })
       updateUser({ ...user, introVideo: null })
     } catch (error) {
