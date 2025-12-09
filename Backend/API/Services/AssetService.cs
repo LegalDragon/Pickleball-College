@@ -83,15 +83,19 @@ public class AssetService : IAssetService
             var uniqueId = Guid.NewGuid().ToString("N");
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
             var fileName = $"{uniqueId}{extension}";
-            var storagePath = Path.Combine(uploadPath, fileName);
+
+            // Store relative path only (folder/filename)
+            var relativePath = $"{folder}/{fileName}";
+            var fullPath = Path.Combine(uploadPath, fileName);
 
             // Save the file
-            using (var stream = new FileStream(storagePath, FileMode.Create))
+            using (var stream = new FileStream(fullPath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);
             }
 
             // Create asset record in database (FileId is auto-generated)
+            // Store only relative path for portability
             var asset = new Asset
             {
                 FileName = fileName,
@@ -99,7 +103,7 @@ public class AssetService : IAssetService
                 ContentType = file.ContentType,
                 FileSize = file.Length,
                 StorageProvider = _options.Provider,
-                StoragePath = storagePath,
+                StoragePath = relativePath,
                 Folder = folder,
                 ObjectType = objectType,
                 ObjectId = objectId,
@@ -169,10 +173,11 @@ public class AssetService : IAssetService
                 return false;
             }
 
-            // Delete physical file
-            if (File.Exists(asset.StoragePath))
+            // Delete physical file (construct full path from relative path)
+            var fullPath = GetFullPath(asset.StoragePath);
+            if (File.Exists(fullPath))
             {
-                File.Delete(asset.StoragePath);
+                File.Delete(fullPath);
             }
 
             // Mark as deleted in database (soft delete)
@@ -200,14 +205,25 @@ public class AssetService : IAssetService
         if (asset == null)
             return (null, null, null);
 
-        if (!File.Exists(asset.StoragePath))
+        // Construct full path from relative path
+        var fullPath = GetFullPath(asset.StoragePath);
+        if (!File.Exists(fullPath))
         {
-            _logger.LogWarning("Asset file not found on disk: {StoragePath}", asset.StoragePath);
+            _logger.LogWarning("Asset file not found on disk: {FullPath} (relative: {StoragePath})", fullPath, asset.StoragePath);
             return (null, null, null);
         }
 
-        var stream = new FileStream(asset.StoragePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
         return (stream, asset.ContentType, asset.OriginalFileName ?? asset.FileName);
+    }
+
+    /// <summary>
+    /// Constructs full file path from relative storage path
+    /// </summary>
+    private string GetFullPath(string relativePath)
+    {
+        var basePath = !string.IsNullOrEmpty(_options.BasePath) ? _options.BasePath : _environment.WebRootPath ?? "wwwroot";
+        return Path.Combine(basePath, _options.UploadsFolder, relativePath.Replace('/', Path.DirectorySeparatorChar));
     }
 
     public string GetUploadPath(string folder)

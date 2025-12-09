@@ -189,7 +189,7 @@ public class UsersController : ControllerBase
             }
 
             // Validate file using asset service
-            var validation = _assetService.ValidateFile(file, "avatars");
+            var validation = _assetService.ValidateFile(file, "useravatar");
             if (!validation.IsValid)
             {
                 return BadRequest(new ApiResponse<AvatarResponse>
@@ -216,8 +216,8 @@ public class UsersController : ControllerBase
                 await _assetService.DeleteFileAsync(user.ProfileImageUrl);
             }
 
-            // Upload new avatar using asset service
-            var result = await _assetService.UploadFileAsync(file, "avatars", userId, "User", userId);
+            // Upload new avatar using asset service (useravatar as folder and objectType)
+            var result = await _assetService.UploadFileAsync(file, "useravatar", userId, "useravatar", userId);
             if (!result.Success)
             {
                 return BadRequest(new ApiResponse<AvatarResponse>
