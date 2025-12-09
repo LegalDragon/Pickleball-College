@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { useAuth } from '../contexts/AuthContext'
-import { userApi, assetApi } from '../services/api'
+import { userApi, assetApi, getAssetUrl } from '../services/api'
 import {
   User, Camera, Video, MapPin, Phone, Calendar,
   Edit2, Save, Upload, X, Play, Award, Target,
@@ -94,10 +94,10 @@ const Profile = () => {
       // Set avatar preview from either avatar or profileImageUrl
       const avatarUrl = user.avatar || user.profileImageUrl
       if (avatarUrl) {
-        setAvatarPreview(avatarUrl)
+        setAvatarPreview(getAssetUrl(avatarUrl))
       }
       if (user.introVideo) {
-        setVideoPreview(user.introVideo)
+        setVideoPreview(getAssetUrl(user.introVideo))
       }
     }
   }, [user])
@@ -133,7 +133,7 @@ const Profile = () => {
         console.error('Avatar upload error:', error)
         alert('Failed to upload avatar: ' + (error.message || 'Unknown error'))
         // Revert preview on error
-        setAvatarPreview(user?.avatar || user?.profileImageUrl || null)
+        setAvatarPreview(getAssetUrl(user?.avatar || user?.profileImageUrl) || null)
       } finally {
         setAvatarUploading(false)
       }
@@ -191,14 +191,14 @@ const Profile = () => {
           await userApi.updateProfile({ introVideo: response.data.url })
           updateUser({ ...user, introVideo: response.data.url })
           // Update preview to use server URL
-          setVideoPreview(response.data.url)
+          setVideoPreview(getAssetUrl(response.data.url))
         } else {
           throw new Error(response.message || 'Upload failed')
         }
       } catch (error) {
         console.error('Video upload error:', error)
         alert('Failed to upload video: ' + (error.message || 'Unknown error'))
-        setVideoPreview(user?.introVideo || null)
+        setVideoPreview(getAssetUrl(user?.introVideo) || null)
       } finally {
         setVideoUploading(false)
       }

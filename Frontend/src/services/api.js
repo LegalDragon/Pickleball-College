@@ -1,6 +1,28 @@
 import axios from 'axios'
 
-const API_BASE_URL = 'https://localhost:7009/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://localhost:7009/api'
+
+// Helper function to get full asset URL (for avatars, images, etc.)
+export const getAssetUrl = (path) => {
+  if (!path) return null
+  // If path is already a full URL, return as-is
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path
+  }
+  // If path starts with /api, replace with API_BASE_URL
+  if (path.startsWith('/api/')) {
+    return `${API_BASE_URL}${path.substring(4)}`
+  }
+  // If path starts with /, prepend API_BASE_URL
+  if (path.startsWith('/')) {
+    return `${API_BASE_URL}${path}`
+  }
+  // Otherwise, return as-is
+  return path
+}
+
+// Export API_BASE_URL for direct use if needed
+export { API_BASE_URL }
 
 const api = axios.create({
   baseURL: API_BASE_URL,

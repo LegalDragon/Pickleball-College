@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { materialApi } from '../services/api'
+import { materialApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { Search, Filter, Play, DollarSign } from 'lucide-react'
 
@@ -92,7 +92,7 @@ const Marketplace = () => {
               <div className="h-48 bg-gray-200 relative">
                 {material.thumbnailUrl ? (
                   <img
-                    src={material.thumbnailUrl}
+                    src={getAssetUrl(material.thumbnailUrl)}
                     alt={material.title}
                     className="w-full h-full object-cover"
                   />
