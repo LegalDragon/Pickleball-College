@@ -6,7 +6,7 @@ import {
   Users, BookOpen, Calendar, DollarSign, Search, Edit2, Trash2,
   ChevronLeft, ChevronRight, Filter, MoreVertical, Eye, X,
   Shield, GraduationCap, User, CheckCircle, XCircle, Save,
-  Palette, Upload, RefreshCw, Image, Swatches, Check
+  Palette, Upload, RefreshCw, Image, Layers, Check
 } from 'lucide-react'
 
 const AdminDashboard = () => {
@@ -756,7 +756,7 @@ const AdminDashboard = () => {
                   {/* Theme Presets Section */}
                   <div className="bg-white rounded-xl shadow-sm p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <Swatches className="w-5 h-5 mr-2 text-indigo-500" />
+                      <Layers className="w-5 h-5 mr-2 text-indigo-500" />
                       Theme Presets
                     </h3>
                     <p className="text-sm text-gray-500 mb-4">
@@ -828,7 +828,7 @@ const AdminDashboard = () => {
                       </div>
                     ) : (
                       <div className="text-center py-8 text-gray-500">
-                        <Swatches className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                        <Layers className="w-10 h-10 mx-auto mb-2 text-gray-300" />
                         <p>No theme presets available</p>
                       </div>
                     )}
