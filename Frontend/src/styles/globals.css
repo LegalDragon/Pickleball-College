@@ -383,6 +383,49 @@ a:hover {
   margin-bottom: 2rem;
 }
 
+/* Features Section */
+.features {
+  padding: 5rem 0;
+  background: var(--gray-100);
+}
+
+.features .section-title {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.features .section-title h2 {
+  margin-bottom: 0.5rem;
+}
+
+.features .section-title p {
+  color: var(--gray-600);
+  font-size: 1.125rem;
+}
+
+/* Features Grid - Horizontal on desktop, stacked on mobile */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+@media (max-width: 1024px) {
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .features {
+    padding: 3rem 0;
+  }
+}
+
 /* Feature Cards */
 .feature-card {
   background: var(--light);
