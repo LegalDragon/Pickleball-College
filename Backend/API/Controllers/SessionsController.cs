@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using Pickleball.College.Services;
 using Pickleball.College.Models.DTOs;
+using Pickleball.College.Models.Entities;
 
 namespace Pickleball.College.API.Controllers;
 
@@ -30,7 +31,7 @@ public class SessionsController : ControllerBase
         try
         {
             var session = await _sessionService.RequestSessionAsync(request, studentId.Value);
-            return Ok(session);
+            return Ok(MapToDto(session));
         }
         catch (ArgumentException ex)
         {
@@ -53,7 +54,7 @@ public class SessionsController : ControllerBase
         try
         {
             var session = await _sessionService.ConfirmSessionAsync(request, coachId.Value);
-            return Ok(session);
+            return Ok(MapToDto(session));
         }
         catch (ArgumentException ex)
         {
@@ -76,7 +77,7 @@ public class SessionsController : ControllerBase
         if (coachId == null) return Unauthorized();
 
         var sessions = await _sessionService.GetPendingSessionsAsync(coachId.Value);
-        return Ok(sessions);
+        return Ok(sessions.Select(MapToDto).ToList());
     }
 
     [HttpPost]
@@ -89,7 +90,7 @@ public class SessionsController : ControllerBase
         try
         {
             var session = await _sessionService.ScheduleSessionAsync(request, studentId.Value);
-            return Ok(session);
+            return Ok(MapToDto(session));
         }
         catch (Exception ex)
         {
@@ -102,7 +103,7 @@ public class SessionsController : ControllerBase
     public async Task<ActionResult> GetCoachSessions(int coachId)
     {
         var sessions = await _sessionService.GetCoachSessionsAsync(coachId);
-        return Ok(sessions);
+        return Ok(sessions.Select(MapToDto).ToList());
     }
 
     [HttpGet("student")]
@@ -113,7 +114,7 @@ public class SessionsController : ControllerBase
         if (studentId == null) return Unauthorized();
 
         var sessions = await _sessionService.GetStudentSessionsAsync(studentId.Value);
-        return Ok(sessions);
+        return Ok(sessions.Select(MapToDto).ToList());
     }
 
     [HttpDelete("{sessionId}")]
@@ -130,6 +131,28 @@ public class SessionsController : ControllerBase
         }
 
         return Ok(new { Message = "Session cancelled successfully" });
+    }
+
+    private static SessionRequestDto MapToDto(TrainingSession session)
+    {
+        return new SessionRequestDto
+        {
+            Id = session.Id,
+            CoachId = session.CoachId,
+            CoachName = session.Coach != null ? $"{session.Coach.FirstName} {session.Coach.LastName}" : "Unknown",
+            CoachAvatar = session.Coach?.ProfileImageUrl,
+            StudentId = session.StudentId,
+            StudentName = session.Student != null ? $"{session.Student.FirstName} {session.Student.LastName}" : "Unknown",
+            SessionType = session.SessionType ?? "Online",
+            RequestedAt = session.RequestedAt ?? session.ScheduledAt,
+            DurationMinutes = session.DurationMinutes,
+            Price = session.Price,
+            Status = session.Status,
+            MeetingLink = session.MeetingLink,
+            Location = session.Location,
+            Notes = session.Notes,
+            CreatedAt = session.CreatedAt
+        };
     }
 
     private int? GetUserId()
