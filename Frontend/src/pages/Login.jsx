@@ -100,10 +100,46 @@ const Login = () => {
       if (result.success) {
         console.log('Demo login successful')
 
-        // Add a small delay to ensure state is updated
-        setTimeout(() => {
-          navigate(from, { replace: true })
-        }, 100)
+        // Get user from localStorage to determine role
+        const storedUser = localStorage.getItem('pickleball_user')
+
+        if (storedUser) {
+          try {
+            const user = JSON.parse(storedUser)
+            console.log('Demo logged in user:', user)
+
+            // Determine redirect path based on role
+            let redirectPath = '/'
+
+            if (user.role) {
+              const role = user.role.toLowerCase()
+
+              switch (role) {
+                case 'coach':
+                  redirectPath = '/coach/dashboard'
+                  break
+                case 'student':
+                  redirectPath = '/student/dashboard'
+                  break
+                case 'admin':
+                  redirectPath = '/admin/dashboard'
+                  break
+                default:
+                  redirectPath = from
+              }
+
+              console.log(`Demo redirecting ${role} to: ${redirectPath}`)
+
+              // Add a small delay to ensure state is updated
+              setTimeout(() => {
+                navigate(redirectPath, { replace: true })
+              }, 100)
+            }
+          } catch (parseError) {
+            console.error('Error parsing user data:', parseError)
+            navigate(from, { replace: true })
+          }
+        }
       } else {
         console.error('Demo login failed:', result.error)
         setError('root', {

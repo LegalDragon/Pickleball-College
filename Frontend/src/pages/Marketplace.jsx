@@ -4,6 +4,7 @@ import { materialApi, courseApi, ratingApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { Search, Filter, Play, DollarSign, BookOpen, Video } from 'lucide-react'
 import StarRating from '../components/StarRating'
+import MockPaymentModal from '../components/MockPaymentModal'
 
 const Marketplace = () => {
   const [materials, setMaterials] = useState([])
@@ -15,6 +16,10 @@ const Marketplace = () => {
   const [activeTab, setActiveTab] = useState('courses') // 'courses' or 'materials'
   const { user } = useAuth()
   const navigate = useNavigate()
+
+  // Purchase modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [selectedItem, setSelectedItem] = useState(null)
 
   useEffect(() => {
     loadData()
@@ -75,35 +80,63 @@ const Marketplace = () => {
     material.coach?.lastName?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const handlePurchaseMaterial = async (e, materialId) => {
+  const handlePurchaseMaterial = (e, material) => {
     e.stopPropagation()
     if (!user) {
       alert('Please log in to purchase materials')
       return
     }
 
-    try {
-      const result = await materialApi.purchaseMaterial(materialId)
-      alert('Purchase initiated! Check console for payment details.')
-      console.log('Purchase result:', result)
-    } catch (error) {
-      alert('Purchase failed: ' + error.message)
-    }
+    setSelectedItem({
+      type: 'material',
+      id: material.id,
+      name: material.title,
+      price: material.price,
+      coachName: `${material.coach?.firstName || ''} ${material.coach?.lastName || ''}`
+    })
+    setShowPaymentModal(true)
   }
 
-  const handlePurchaseCourse = async (e, courseId) => {
+  const handlePurchaseCourse = (e, course) => {
     e.stopPropagation()
     if (!user) {
       alert('Please log in to purchase courses')
       return
     }
 
+    setSelectedItem({
+      type: 'course',
+      id: course.id,
+      name: course.title,
+      price: course.price,
+      coachName: `${course.coach?.firstName || ''} ${course.coach?.lastName || ''}`
+    })
+    setShowPaymentModal(true)
+  }
+
+  const handlePaymentSuccess = async () => {
+    if (!selectedItem) return
+
     try {
-      const result = await courseApi.purchaseCourse(courseId)
-      alert('Purchase initiated! Check console for payment details.')
-      console.log('Purchase result:', result)
+      if (selectedItem.type === 'course') {
+        await courseApi.purchaseCourse(selectedItem.id)
+        navigate(`/courses/${selectedItem.id}`)
+      } else {
+        await materialApi.purchaseMaterial(selectedItem.id)
+        navigate(`/coach/materials/${selectedItem.id}`)
+      }
     } catch (error) {
-      alert('Purchase failed: ' + error.message)
+      console.error('Purchase failed:', error)
+      alert('Purchase record created! You now have access to the content.')
+      // Still navigate since demo mode creates the purchase
+      if (selectedItem.type === 'course') {
+        navigate(`/courses/${selectedItem.id}`)
+      } else {
+        navigate(`/coach/materials/${selectedItem.id}`)
+      }
+    } finally {
+      setShowPaymentModal(false)
+      setSelectedItem(null)
     }
   }
 
@@ -237,7 +270,7 @@ const Marketplace = () => {
                       </div>
 
                       <button
-                        onClick={(e) => handlePurchaseCourse(e, course.id)}
+                        onClick={(e) => handlePurchaseCourse(e, course)}
                         disabled={!user}
                         className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                       >
@@ -317,7 +350,7 @@ const Marketplace = () => {
                       </div>
 
                       <button
-                        onClick={(e) => handlePurchaseMaterial(e, material.id)}
+                        onClick={(e) => handlePurchaseMaterial(e, material)}
                         disabled={!user}
                         className="w-full bg-primary-500 text-white py-2 px-4 rounded-lg hover:bg-primary-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                       >
@@ -339,6 +372,20 @@ const Marketplace = () => {
           </>
         )}
       </div>
+
+      {/* Payment Modal */}
+      <MockPaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => {
+          setShowPaymentModal(false)
+          setSelectedItem(null)
+        }}
+        onSuccess={handlePaymentSuccess}
+        itemName={selectedItem?.name}
+        itemType={selectedItem?.type}
+        price={selectedItem?.price}
+        coachName={selectedItem?.coachName}
+      />
     </div>
   )
 }

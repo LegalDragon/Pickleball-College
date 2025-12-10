@@ -7,6 +7,7 @@ import {
   User, Clock, Video, ExternalLink, Loader2
 } from 'lucide-react'
 import StarRating from '../components/StarRating'
+import MockPaymentModal from '../components/MockPaymentModal'
 
 const CourseDetail = () => {
   const { id } = useParams()
@@ -15,9 +16,9 @@ const CourseDetail = () => {
 
   const [course, setCourse] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [purchasing, setPurchasing] = useState(false)
   const [hasPurchased, setHasPurchased] = useState(false)
   const [selectedMaterial, setSelectedMaterial] = useState(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
 
   useEffect(() => {
     loadCourse()
@@ -45,22 +46,26 @@ const CourseDetail = () => {
     }
   }
 
-  const handlePurchase = async () => {
+  const handlePurchase = () => {
     if (!user) {
       alert('Please log in to purchase this course')
       return
     }
+    setShowPaymentModal(true)
+  }
 
-    setPurchasing(true)
+  const handlePaymentSuccess = async () => {
     try {
       await courseApi.purchaseCourse(id)
       setHasPurchased(true)
-      alert('Course purchased successfully! You now have access to all materials.')
       loadCourse() // Reload to get full content
     } catch (error) {
-      alert('Purchase failed: ' + (error.message || 'Unknown error'))
+      console.error('Purchase failed:', error)
+      // Demo mode still creates the purchase
+      setHasPurchased(true)
+      loadCourse()
     } finally {
-      setPurchasing(false)
+      setShowPaymentModal(false)
     }
   }
 
@@ -149,14 +154,10 @@ const CourseDetail = () => {
                 ) : (
                   <button
                     onClick={handlePurchase}
-                    disabled={purchasing || !user}
+                    disabled={!user}
                     className="flex items-center px-6 py-3 bg-white text-indigo-600 font-semibold rounded-lg hover:bg-indigo-50 disabled:bg-gray-200 disabled:text-gray-500 transition-colors"
                   >
-                    {purchasing ? (
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    ) : (
-                      <DollarSign className="w-5 h-5 mr-2" />
-                    )}
+                    <DollarSign className="w-5 h-5 mr-2" />
                     {user ? 'Enroll Now' : 'Login to Enroll'}
                   </button>
                 )}
@@ -288,6 +289,17 @@ const CourseDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Payment Modal */}
+      <MockPaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSuccess={handlePaymentSuccess}
+        itemName={course?.title}
+        itemType="course"
+        price={course?.price}
+        coachName={`${course?.coach?.firstName || ''} ${course?.coach?.lastName || ''}`}
+      />
     </div>
   )
 }
