@@ -351,4 +351,54 @@ export const assetApi = {
   getAllowedTypes: () => api.get('/assets/allowed-types')
 }
 
+// Rating API
+export const ratingApi = {
+  // Create or update a rating
+  rate: (ratableType, ratableId, stars, review = null) =>
+    api.post('/ratings', { ratableType, ratableId, stars, review }),
+
+  // Get current user's rating for an item
+  getMyRating: (ratableType, ratableId) =>
+    api.get(`/ratings/${ratableType}/${ratableId}/my-rating`),
+
+  // Get all ratings for an item
+  getRatings: (ratableType, ratableId) =>
+    api.get(`/ratings/${ratableType}/${ratableId}`),
+
+  // Get rating summary for an item
+  getSummary: (ratableType, ratableId) =>
+    api.get(`/ratings/${ratableType}/${ratableId}/summary`),
+
+  // Get rating summaries for multiple items
+  getSummaries: (ratableType, ratableIds) =>
+    api.post(`/ratings/${ratableType}/summaries`, ratableIds),
+
+  // Delete a rating
+  deleteRating: (ratableType, ratableId) =>
+    api.delete(`/ratings/${ratableType}/${ratableId}`)
+}
+
+// Tag API
+export const tagApi = {
+  // Get all tags for an object
+  getTags: (objectType, objectId) =>
+    api.get(`/tags/${objectType}/${objectId}`),
+
+  // Add a tag to an object
+  addTag: (objectType, objectId, tagName) =>
+    api.post('/tags', { objectType, objectId, tagName }),
+
+  // Remove a tag from an object
+  removeTag: (objectType, objectId, tagId) =>
+    api.delete(`/tags/${objectType}/${objectId}/${tagId}`),
+
+  // Get common/suggested tags for an object type
+  getCommonTags: (objectType, objectId, limit = 10) =>
+    api.get(`/tags/${objectType}/${objectId}/common?limit=${limit}`),
+
+  // Search tags by name
+  searchTags: (query, limit = 10) =>
+    api.get(`/tags/search?query=${encodeURIComponent(query)}&limit=${limit}`)
+}
+
 export default api

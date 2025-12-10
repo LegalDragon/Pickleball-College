@@ -47,6 +47,8 @@ builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<IFileStorageService, AwsS3StorageService>();
 builder.Services.AddScoped<IStripeService, StripeService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IRatingService, RatingService>();
+builder.Services.AddScoped<ITagService, TagService>();
 
 // CORS
 builder.Services.AddCors(options =>

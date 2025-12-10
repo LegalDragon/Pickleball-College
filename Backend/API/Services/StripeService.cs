@@ -29,6 +29,13 @@ public class ApplicationDbContext : DbContext
     // Content Types for Materials
     public DbSet<ContentType> ContentTypes { get; set; }
 
+    // Ratings
+    public DbSet<Rating> Ratings { get; set; }
+
+    // Tags
+    public DbSet<TagDefinition> TagDefinitions { get; set; }
+    public DbSet<ObjectTag> ObjectTags { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
@@ -223,6 +230,51 @@ public class ApplicationDbContext : DbContext
                     CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
                 }
             );
+        });
+
+        // Rating configuration
+        modelBuilder.Entity<Rating>(entity =>
+        {
+            entity.HasOne(r => r.User)
+                  .WithMany()
+                  .HasForeignKey(r => r.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(r => r.RatableType).IsRequired().HasMaxLength(50);
+            entity.Property(r => r.Stars).IsRequired();
+            entity.Property(r => r.Review).HasMaxLength(1000);
+
+            // Composite index for unique rating per user per ratable item
+            entity.HasIndex(r => new { r.UserId, r.RatableType, r.RatableId }).IsUnique();
+            // Index for querying ratings by ratable item
+            entity.HasIndex(r => new { r.RatableType, r.RatableId });
+        });
+
+        // Tag configuration
+        modelBuilder.Entity<TagDefinition>(entity =>
+        {
+            entity.Property(t => t.Name).IsRequired().HasMaxLength(50);
+            entity.HasIndex(t => t.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<ObjectTag>(entity =>
+        {
+            entity.HasOne(ot => ot.Tag)
+                  .WithMany(t => t.ObjectTags)
+                  .HasForeignKey(ot => ot.TagId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(ot => ot.CreatedByUser)
+                  .WithMany()
+                  .HasForeignKey(ot => ot.CreatedByUserId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.Property(ot => ot.ObjectType).IsRequired().HasMaxLength(50);
+
+            // Unique constraint: one tag per object
+            entity.HasIndex(ot => new { ot.TagId, ot.ObjectType, ot.ObjectId }).IsUnique();
+            // Index for querying tags by object
+            entity.HasIndex(ot => new { ot.ObjectType, ot.ObjectId });
         });
     }
 }
