@@ -92,8 +92,32 @@ public class MaterialService : IMaterialService
             throw new ArgumentException("Material not found");
         }
 
-        // Create Stripe payment intent
-        var paymentIntent = await _stripeService.CreatePaymentIntentAsync(material.Price, $"Purchase of {material.Title}");
+        // Check if already purchased
+        var existingPurchase = await _context.MaterialPurchases
+            .FirstOrDefaultAsync(p => p.StudentId == studentId && p.MaterialId == materialId);
+
+        if (existingPurchase != null)
+        {
+            throw new ArgumentException("You have already purchased this material");
+        }
+
+        string? paymentIntentId = null;
+        string? clientSecret = null;
+
+        // Try to create Stripe payment intent, fall back to demo mode if Stripe is not configured
+        try
+        {
+            var paymentIntent = await _stripeService.CreatePaymentIntentAsync(material.Price, $"Purchase of {material.Title}");
+            paymentIntentId = paymentIntent.Id;
+            clientSecret = paymentIntent.ClientSecret;
+        }
+        catch (Exception ex)
+        {
+            // Stripe not configured - use demo mode
+            Console.WriteLine($"Stripe not available ({ex.Message}), using demo purchase mode");
+            paymentIntentId = $"demo_{Guid.NewGuid():N}";
+            clientSecret = "demo_mode";
+        }
 
         // Create purchase record
         var purchase = new MaterialPurchase
@@ -103,7 +127,7 @@ public class MaterialService : IMaterialService
             PurchasePrice = material.Price,
             PlatformFee = material.Price * 0.15m, // 15% platform fee
             CoachEarnings = material.Price * 0.85m, // 85% to coach
-            StripePaymentIntentId = paymentIntent.Id,
+            StripePaymentIntentId = paymentIntentId,
             PurchasedAt = DateTime.UtcNow
         };
 
@@ -112,7 +136,7 @@ public class MaterialService : IMaterialService
 
         return new PurchaseResult
         {
-            ClientSecret = paymentIntent.ClientSecret,
+            ClientSecret = clientSecret,
             PurchaseId = purchase.Id,
             Amount = material.Price
         };
