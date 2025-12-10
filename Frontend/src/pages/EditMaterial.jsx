@@ -44,16 +44,35 @@ const EditMaterial = () => {
       setLoadingMaterial(true)
       const response = await materialApi.getMaterial(id)
 
-      // Handle wrapped API response - extract material data
-      const material = response?.data || response
+      console.log('EditMaterial - API response:', response)
+
+      // Handle various API response structures
+      let material = null
+
+      // Check if response has nested data property (ApiResponse wrapper)
+      if (response && typeof response === 'object') {
+        if (response.data && typeof response.data === 'object' && (response.data.id || response.data.Id)) {
+          // Wrapped: { success: true, data: { id, title, ... } }
+          material = response.data
+        } else if (response.id || response.Id) {
+          // Direct object: { id, title, ... }
+          material = response
+        } else if (response.success === false) {
+          throw new Error(response.message || 'Failed to load material')
+        }
+      }
+
+      console.log('EditMaterial - Extracted material:', material)
 
       if (!material) {
-        throw new Error('Material not found')
+        throw new Error('Material not found or invalid response format')
       }
 
       // Check authorization - handle both coachId and CoachId (case variations)
       const materialCoachId = material.coachId || material.CoachId
-      if (materialCoachId !== user.id && user.role !== 'Admin') {
+      console.log('EditMaterial - Coach ID check:', materialCoachId, 'vs user.id:', user.id)
+
+      if (materialCoachId && materialCoachId !== user.id && user.role !== 'Admin') {
         alert('You are not authorized to edit this material')
         navigate('/coach/dashboard')
         return
@@ -67,7 +86,7 @@ const EditMaterial = () => {
         description: material.description || material.Description || '',
         contentType: material.contentType || material.ContentType || 'Video',
         externalLink: material.externalLink || material.ExternalLink || '',
-        price: material.price || material.Price || 0
+        price: material.price ?? material.Price ?? 0
       })
 
     } catch (error) {
