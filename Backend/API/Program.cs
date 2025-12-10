@@ -42,6 +42,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // Services
 builder.Services.AddScoped<IAssetService, AssetService>();
 builder.Services.AddScoped<IMaterialService, MaterialService>();
+builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<IFileStorageService, AwsS3StorageService>();
 builder.Services.AddScoped<IStripeService, StripeService>();

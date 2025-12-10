@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { materialApi, sessionApi, getAssetUrl } from '../services/api'
+import { materialApi, sessionApi, courseApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Users, DollarSign, Video, Calendar, RefreshCw, AlertCircle, Eye, Edit2 } from 'lucide-react'
+import { Plus, Users, DollarSign, Video, Calendar, RefreshCw, AlertCircle, Eye, Edit2, BookOpen } from 'lucide-react'
 
 const CoachDashboard = () => {
   const [materials, setMaterials] = useState([])
+  const [courses, setCourses] = useState([])
   const [sessions, setSessions] = useState([])
   const [stats, setStats] = useState({
     totalMaterials: 0,
+    totalCourses: 0,
     totalEarnings: 0,
     upcomingSessions: 0
   })
@@ -61,15 +63,18 @@ const CoachDashboard = () => {
 
       console.log('Loading dashboard data for coach ID:', user.id)
 
-      const [materialsData, sessionsData] = await Promise.all([
+      const [materialsData, coursesData, sessionsData] = await Promise.all([
         materialApi.getCoachMaterials(user.id),
+        courseApi.getCoachCourses(user.id),
         sessionApi.getCoachSessions(user.id)
       ])
 
       console.log('Materials data:', materialsData)
+      console.log('Courses data:', coursesData)
       console.log('Sessions data:', sessionsData)
 
       setMaterials(Array.isArray(materialsData) ? materialsData.slice(0, 5) : [])
+      setCourses(Array.isArray(coursesData) ? coursesData.slice(0, 5) : [])
       setSessions(Array.isArray(sessionsData) ? sessionsData.slice(0, 5) : [])
 
       // Calculate stats
@@ -90,6 +95,7 @@ const CoachDashboard = () => {
 
       setStats({
         totalMaterials: Array.isArray(materialsData) ? materialsData.length : 0,
+        totalCourses: Array.isArray(coursesData) ? coursesData.length : 0,
         totalEarnings,
         upcomingSessions
       })
@@ -180,7 +186,7 @@ const CoachDashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="p-2 bg-blue-100 rounded-lg">
@@ -189,6 +195,18 @@ const CoachDashboard = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Materials</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.totalMaterials}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-indigo-100 rounded-lg">
+                <BookOpen className="w-6 h-6 text-indigo-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Total Courses</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalCourses}</p>
               </div>
             </div>
           </div>
@@ -314,11 +332,94 @@ const CoachDashboard = () => {
             )}
           </div>
 
-          {/* Upcoming Sessions */}
+          {/* Recent Courses */}
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Upcoming Sessions</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-medium text-gray-900">Recent Courses</h2>
+                <Link
+                  to="/coach/courses/create"
+                  className="flex items-center text-primary-600 hover:text-primary-700"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Create New
+                </Link>
+              </div>
             </div>
+            <div className="divide-y divide-gray-200">
+              {courses.length > 0 ? (
+                courses.map((course) => (
+                  <div key={course.id} className="px-6 py-4 hover:bg-gray-50 group">
+                    <div className="flex items-start">
+                      {/* Thumbnail */}
+                      <div className="flex-shrink-0 w-20 h-14 rounded-lg overflow-hidden bg-gray-100 mr-4">
+                        {course.thumbnailUrl ? (
+                          <img
+                            src={getAssetUrl(course.thumbnailUrl)}
+                            alt={course.title || 'Course thumbnail'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <BookOpen className="w-6 h-6 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-medium text-gray-900 truncate">{course.title || 'Untitled Course'}</h3>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {course.materialCount || 0} materials • {course.previewCount || 0} previews
+                        </p>
+                        <div className="flex items-center mt-2 space-x-3">
+                          <span className="text-sm font-medium text-gray-900">
+                            ${course.price ? course.price.toFixed(2) : '0.00'}
+                          </span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            course.isPublished
+                              ? 'bg-green-100 text-green-600'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {course.isPublished ? 'Published' : 'Draft'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="ml-4 flex items-center space-x-1">
+                        <Link
+                          to={`/coach/courses/edit/${course.id}`}
+                          className="p-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="px-6 py-8 text-center">
+                  <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No courses yet</p>
+                  <Link
+                    to="/coach/courses/create"
+                    className="inline-block mt-2 text-primary-600 hover:text-primary-700 text-sm font-medium"
+                  >
+                    Create your first course
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Upcoming Sessions - Full Width */}
+        <div className="mt-8 bg-white rounded-lg shadow">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-medium text-gray-900">Upcoming Sessions</h2>
+          </div>
             <div className="divide-y divide-gray-200">
               {sessions.length > 0 ? (
                 sessions.map((session) => (
@@ -360,7 +461,6 @@ const CoachDashboard = () => {
                 </div>
               )}
             </div>
-          </div>
         </div>
       </div>
     </div>

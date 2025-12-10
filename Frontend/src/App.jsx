@@ -7,6 +7,8 @@ import SessionScheduler from './pages/SessionScheduler'
 import MaterialCreator from './pages/MaterialCreator'
 import EditMaterial from './pages/EditMaterial'
 import MaterialDetail from './pages/MaterialDetail'
+import CourseCreator from './pages/CourseCreator'
+import CourseEditor from './pages/CourseEditor'
 import CoachDashboard from './pages/CoachDashboard'
 import StudentDashboard from './pages/StudentDashboard'
 import AdminDashboard from './pages/AdminDashboard' // Add this import
@@ -46,6 +48,18 @@ function App() {
 <Route path="/Coach/Materials/Create" element={
         <ProtectedRoute role="Coach">
           <MaterialCreator />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/coach/courses/create" element={
+        <ProtectedRoute role="Coach">
+          <CourseCreator />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/coach/courses/edit/:id" element={
+        <ProtectedRoute role="Coach">
+          <CourseEditor />
         </ProtectedRoute>
       } />
 

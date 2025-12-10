@@ -42,3 +42,26 @@ public interface ISessionService
     Task<List<TrainingSession>> GetStudentSessionsAsync(int studentId);
     Task<bool> CancelSessionAsync(int sessionId, int userId);
 }
+
+public interface ICourseService
+{
+    // Course CRUD
+    Task<CourseDto> CreateCourseAsync(int coachId, CreateCourseRequest request, string? thumbnailUrl);
+    Task<CourseDto> UpdateCourseAsync(int courseId, int coachId, UpdateCourseRequest request, string? thumbnailUrl);
+    Task<CourseDto> GetCourseAsync(int courseId);
+    Task<CourseDto> GetCourseWithMaterialsAsync(int courseId, int? userId = null);
+    Task<List<CourseDto>> GetCoachCoursesAsync(int coachId);
+    Task<List<CourseDto>> GetPublishedCoursesAsync();
+    Task<CourseDto> TogglePublishAsync(int courseId, int coachId);
+    Task DeleteCourseAsync(int courseId, int coachId);
+
+    // Course Materials
+    Task<CourseMaterialDto> AddMaterialToCourseAsync(int courseId, int coachId, AddCourseMaterialRequest request);
+    Task<CourseMaterialDto> UpdateCourseMaterialAsync(int courseId, int courseMaterialId, int coachId, UpdateCourseMaterialRequest request);
+    Task RemoveMaterialFromCourseAsync(int courseId, int courseMaterialId, int coachId);
+    Task ReorderCourseMaterialsAsync(int courseId, int coachId, ReorderCourseMaterialsRequest request);
+
+    // Purchases
+    Task<bool> HasPurchasedCourseAsync(int courseId, int studentId);
+    Task<PurchaseResult> PurchaseCourseAsync(int courseId, int studentId);
+}

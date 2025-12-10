@@ -29,4 +29,5 @@ public class TrainingMaterial
     public User Coach { get; set; } = null!;
     public ICollection<MaterialPurchase> Purchases { get; set; } = new List<MaterialPurchase>();
     public ICollection<TrainingSession> Sessions { get; set; } = new List<TrainingSession>();
+    public ICollection<CourseMaterial> CourseMaterials { get; set; } = new List<CourseMaterial>();
 }

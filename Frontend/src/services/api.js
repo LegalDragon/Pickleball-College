@@ -259,6 +259,65 @@ export const contentTypesApi = {
   getByCode: (code) => api.get(`/contenttypes/${code}`)
 }
 
+// Course Management API
+export const courseApi = {
+  // Create a new course
+  createCourse: (formData) =>
+    api.post('/courses', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+
+  // Update a course
+  updateCourse: (id, formData) =>
+    api.put(`/courses/${id}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+
+  // Get all published courses
+  getCourses: () =>
+    api.get('/courses'),
+
+  // Get courses for a coach
+  getCoachCourses: (coachId) =>
+    api.get(`/courses/coach/${coachId}`),
+
+  // Get a single course with materials
+  getCourse: (id) =>
+    api.get(`/courses/${id}`),
+
+  // Toggle publish status
+  togglePublish: (id) =>
+    api.post(`/courses/${id}/toggle-publish`),
+
+  // Delete a course
+  deleteCourse: (id) =>
+    api.delete(`/courses/${id}`),
+
+  // Add material to course
+  addMaterial: (courseId, data) =>
+    api.post(`/courses/${courseId}/materials`, data),
+
+  // Update course material (sort order, preview status)
+  updateMaterial: (courseId, courseMaterialId, data) =>
+    api.put(`/courses/${courseId}/materials/${courseMaterialId}`, data),
+
+  // Remove material from course
+  removeMaterial: (courseId, courseMaterialId) =>
+    api.delete(`/courses/${courseId}/materials/${courseMaterialId}`),
+
+  // Reorder materials
+  reorderMaterials: (courseId, materials) =>
+    api.post(`/courses/${courseId}/materials/reorder`, { materials }),
+
+  // Purchase course
+  purchaseCourse: (courseId) =>
+    api.post(`/courses/${courseId}/purchase`),
+
+  // Check if user has purchased course
+  hasPurchased: (courseId) =>
+    api.get(`/courses/${courseId}/purchased`)
+}
+
 // Asset Management API
 export const assetApi = {
   // Upload a single file

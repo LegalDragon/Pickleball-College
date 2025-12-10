@@ -15,6 +15,11 @@ public class ApplicationDbContext : DbContext
     public DbSet<MaterialPurchase> MaterialPurchases { get; set; }
     public DbSet<TrainingSession> TrainingSessions { get; set; }
 
+    // Courses
+    public DbSet<Course> Courses { get; set; }
+    public DbSet<CourseMaterial> CourseMaterials { get; set; }
+    public DbSet<CoursePurchase> CoursePurchases { get; set; }
+
     // Theme and Asset Management
     public DbSet<ThemeSettings> ThemeSettings { get; set; }
     public DbSet<ThemePreset> ThemePresets { get; set; }
@@ -77,6 +82,48 @@ public class ApplicationDbContext : DbContext
                   .WithOne(u => u.CoachProfile)
                   .HasForeignKey<CoachProfile>(cp => cp.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Course configuration
+        modelBuilder.Entity<Course>(entity =>
+        {
+            entity.HasOne(c => c.Coach)
+                  .WithMany()
+                  .HasForeignKey(c => c.CoachId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(c => c.Title).IsRequired().HasMaxLength(200);
+            entity.Property(c => c.Description).HasMaxLength(2000);
+        });
+
+        modelBuilder.Entity<CourseMaterial>(entity =>
+        {
+            entity.HasOne(cm => cm.Course)
+                  .WithMany(c => c.CourseMaterials)
+                  .HasForeignKey(cm => cm.CourseId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(cm => cm.Material)
+                  .WithMany(m => m.CourseMaterials)
+                  .HasForeignKey(cm => cm.MaterialId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(cm => new { cm.CourseId, cm.MaterialId }).IsUnique();
+        });
+
+        modelBuilder.Entity<CoursePurchase>(entity =>
+        {
+            entity.HasOne(cp => cp.Course)
+                  .WithMany(c => c.Purchases)
+                  .HasForeignKey(cp => cp.CourseId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(cp => cp.Student)
+                  .WithMany()
+                  .HasForeignKey(cp => cp.StudentId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(cp => new { cp.CourseId, cp.StudentId }).IsUnique();
         });
 
         // Theme and Asset Management configuration
