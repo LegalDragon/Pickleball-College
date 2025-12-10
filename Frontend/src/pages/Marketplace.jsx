@@ -120,22 +120,33 @@ const Marketplace = () => {
     try {
       if (selectedItem.type === 'course') {
         await courseApi.purchaseCourse(selectedItem.id)
-        navigate(`/courses/${selectedItem.id}`)
       } else {
         await materialApi.purchaseMaterial(selectedItem.id)
-        navigate(`/coach/materials/${selectedItem.id}`)
       }
-    } catch (error) {
-      console.error('Purchase failed:', error)
-      alert('Purchase record created! You now have access to the content.')
-      // Still navigate since demo mode creates the purchase
+
+      // Navigate on success
+      setShowPaymentModal(false)
+      setSelectedItem(null)
       if (selectedItem.type === 'course') {
         navigate(`/courses/${selectedItem.id}`)
       } else {
-        navigate(`/coach/materials/${selectedItem.id}`)
+        navigate(`/student/dashboard`)
       }
-    } finally {
+    } catch (error) {
+      console.error('Purchase failed:', error)
       setShowPaymentModal(false)
+
+      // Check if it's "already purchased" error - navigate anyway
+      const errorMsg = typeof error === 'string' ? error : error?.message || ''
+      if (errorMsg.toLowerCase().includes('already purchased') || errorMsg.toLowerCase().includes('already owns')) {
+        if (selectedItem.type === 'course') {
+          navigate(`/courses/${selectedItem.id}`)
+        } else {
+          navigate(`/student/dashboard`)
+        }
+      } else {
+        alert('Purchase failed: ' + (errorMsg || 'Please try again'))
+      }
       setSelectedItem(null)
     }
   }

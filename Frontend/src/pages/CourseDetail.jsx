@@ -9,6 +9,30 @@ import {
 import StarRating from '../components/StarRating'
 import MockPaymentModal from '../components/MockPaymentModal'
 
+// Helper function to get embeddable video URL
+const getEmbedUrl = (url) => {
+  if (!url) return null
+
+  // YouTube URLs
+  const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+  if (youtubeMatch) {
+    return `https://www.youtube.com/embed/${youtubeMatch[1]}`
+  }
+
+  // Vimeo URLs
+  const vimeoMatch = url.match(/(?:vimeo\.com\/)(\d+)/)
+  if (vimeoMatch) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`
+  }
+
+  // TikTok - can't embed easily, return null
+  if (url.includes('tiktok.com')) {
+    return null
+  }
+
+  return null
+}
+
 const CourseDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -58,14 +82,20 @@ const CourseDetail = () => {
     try {
       await courseApi.purchaseCourse(id)
       setHasPurchased(true)
-      loadCourse() // Reload to get full content
+      await loadCourse() // Reload to get full content
+      setShowPaymentModal(false)
     } catch (error) {
       console.error('Purchase failed:', error)
-      // Demo mode still creates the purchase
-      setHasPurchased(true)
-      loadCourse()
-    } finally {
       setShowPaymentModal(false)
+
+      // Check if it's "already purchased" error - that's actually fine
+      const errorMsg = typeof error === 'string' ? error : error?.message || ''
+      if (errorMsg.toLowerCase().includes('already purchased')) {
+        setHasPurchased(true)
+        await loadCourse()
+      } else {
+        alert('Purchase failed: ' + (errorMsg || 'Please try again'))
+      }
     }
   }
 
@@ -242,25 +272,51 @@ const CourseDetail = () => {
                 <div>
                   {/* Video Player or Content */}
                   {selectedMaterial.material?.videoUrl ? (
-                    <div className="aspect-video bg-black rounded-t-lg">
-                      <video
-                        src={getAssetUrl(selectedMaterial.material.videoUrl)}
-                        controls
-                        className="w-full h-full rounded-t-lg"
-                      />
-                    </div>
+                    // Check if it's an embeddable URL (YouTube/Vimeo) or direct video
+                    getEmbedUrl(selectedMaterial.material.videoUrl) ? (
+                      <div className="aspect-video bg-black rounded-t-lg">
+                        <iframe
+                          src={getEmbedUrl(selectedMaterial.material.videoUrl)}
+                          className="w-full h-full rounded-t-lg"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          title={selectedMaterial.material?.title}
+                        />
+                      </div>
+                    ) : (
+                      <div className="aspect-video bg-black rounded-t-lg">
+                        <video
+                          src={getAssetUrl(selectedMaterial.material.videoUrl)}
+                          controls
+                          className="w-full h-full rounded-t-lg"
+                        />
+                      </div>
+                    )
                   ) : selectedMaterial.material?.externalLink ? (
-                    <div className="aspect-video bg-gray-100 rounded-t-lg flex items-center justify-center">
-                      <a
-                        href={selectedMaterial.material.externalLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                      >
-                        <ExternalLink className="w-5 h-5 mr-2" />
-                        Open External Content
-                      </a>
-                    </div>
+                    // Check if external link is embeddable video
+                    getEmbedUrl(selectedMaterial.material.externalLink) ? (
+                      <div className="aspect-video bg-black rounded-t-lg">
+                        <iframe
+                          src={getEmbedUrl(selectedMaterial.material.externalLink)}
+                          className="w-full h-full rounded-t-lg"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          title={selectedMaterial.material?.title}
+                        />
+                      </div>
+                    ) : (
+                      <div className="aspect-video bg-gray-100 rounded-t-lg flex items-center justify-center">
+                        <a
+                          href={selectedMaterial.material.externalLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                        >
+                          <ExternalLink className="w-5 h-5 mr-2" />
+                          Open External Content
+                        </a>
+                      </div>
+                    )
                   ) : (
                     <div className="aspect-video bg-gray-100 rounded-t-lg flex items-center justify-center">
                       <Video className="w-16 h-16 text-gray-300" />
