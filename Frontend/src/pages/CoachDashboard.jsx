@@ -2,21 +2,27 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { materialApi, sessionApi, courseApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Users, DollarSign, Video, Calendar, RefreshCw, AlertCircle, Eye, Edit2, BookOpen } from 'lucide-react'
+import { Plus, Users, DollarSign, Video, Calendar, RefreshCw, AlertCircle, Eye, Edit2, BookOpen, Clock, Check, X, MapPin, Link as LinkIcon, Loader2 } from 'lucide-react'
 
 const CoachDashboard = () => {
   const [materials, setMaterials] = useState([])
   const [courses, setCourses] = useState([])
   const [sessions, setSessions] = useState([])
+  const [pendingSessions, setPendingSessions] = useState([])
   const [stats, setStats] = useState({
     totalMaterials: 0,
     totalCourses: 0,
     totalEarnings: 0,
-    upcomingSessions: 0
+    upcomingSessions: 0,
+    pendingRequests: 0
   })
   const [loadingData, setLoadingData] = useState(true)
   const [error, setError] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
+
+  // Session management state
+  const [selectedSession, setSelectedSession] = useState(null)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
 
   const { user, loading: authLoading } = useAuth() // Get auth loading state
   const navigate = useNavigate()
@@ -63,19 +69,22 @@ const CoachDashboard = () => {
 
       console.log('Loading dashboard data for coach ID:', user.id)
 
-      const [materialsData, coursesData, sessionsData] = await Promise.all([
+      const [materialsData, coursesData, sessionsData, pendingData] = await Promise.all([
         materialApi.getCoachMaterials(user.id),
         courseApi.getCoachCourses(user.id),
-        sessionApi.getCoachSessions(user.id)
+        sessionApi.getCoachSessions(user.id),
+        sessionApi.getPendingSessions().catch(() => [])
       ])
 
       console.log('Materials data:', materialsData)
       console.log('Courses data:', coursesData)
       console.log('Sessions data:', sessionsData)
+      console.log('Pending sessions:', pendingData)
 
       setMaterials(Array.isArray(materialsData) ? materialsData.slice(0, 5) : [])
       setCourses(Array.isArray(coursesData) ? coursesData.slice(0, 5) : [])
-      setSessions(Array.isArray(sessionsData) ? sessionsData.slice(0, 5) : [])
+      setSessions(Array.isArray(sessionsData) ? sessionsData.filter(s => s.status !== 'Pending').slice(0, 5) : [])
+      setPendingSessions(Array.isArray(pendingData) ? pendingData : [])
 
       // Calculate stats
       const totalEarnings = Array.isArray(materialsData) ? materialsData.reduce((sum, material) => {
@@ -84,9 +93,9 @@ const CoachDashboard = () => {
 
       const upcomingSessions = Array.isArray(sessionsData) ? sessionsData.filter(session => {
         try {
-          if (!session?.scheduledAt) return false
-          const sessionDate = new Date(session.scheduledAt)
-          return sessionDate > new Date() && session.status === 'Scheduled'
+          if (!session?.requestedAt && !session?.scheduledAt) return false
+          const sessionDate = new Date(session.requestedAt || session.scheduledAt)
+          return sessionDate > new Date() && session.status === 'Confirmed'
         } catch (e) {
           console.error('Error parsing session date:', e)
           return false
@@ -97,7 +106,8 @@ const CoachDashboard = () => {
         totalMaterials: Array.isArray(materialsData) ? materialsData.length : 0,
         totalCourses: Array.isArray(coursesData) ? coursesData.length : 0,
         totalEarnings,
-        upcomingSessions
+        upcomingSessions,
+        pendingRequests: Array.isArray(pendingData) ? pendingData.length : 0
       })
 
     } catch (error) {
@@ -106,6 +116,21 @@ const CoachDashboard = () => {
     } finally {
       setLoadingData(false)
       setRefreshing(false)
+    }
+  }
+
+  const handleConfirmSession = (session) => {
+    setSelectedSession(session)
+    setShowConfirmModal(true)
+  }
+
+  const handleRejectSession = async (sessionId) => {
+    if (!confirm('Are you sure you want to reject this session request?')) return
+    try {
+      await sessionApi.cancelSession(sessionId)
+      loadDashboardData()
+    } catch (error) {
+      alert('Failed to reject session: ' + (error.message || 'Unknown error'))
     }
   }
 
@@ -186,7 +211,7 @@ const CoachDashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="p-2 bg-blue-100 rounded-lg">
@@ -226,7 +251,7 @@ const CoachDashboard = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="p-2 bg-purple-100 rounded-lg">
-                <Users className="w-6 h-6 text-purple-600" />
+                <Calendar className="w-6 h-6 text-purple-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Upcoming Sessions</p>
@@ -234,7 +259,82 @@ const CoachDashboard = () => {
               </div>
             </div>
           </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <Clock className="w-6 h-6 text-yellow-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Pending Requests</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.pendingRequests}</p>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Pending Session Requests */}
+        {pendingSessions.length > 0 && (
+          <div className="mb-8 bg-yellow-50 border border-yellow-200 rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-yellow-200">
+              <h2 className="text-lg font-medium text-yellow-800 flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Pending Session Requests ({pendingSessions.length})
+              </h2>
+            </div>
+            <div className="divide-y divide-yellow-200">
+              {pendingSessions.map((session) => (
+                <div key={session.id} className="px-6 py-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-sm font-medium text-gray-900">
+                        {session.studentName || `${session.student?.firstName || 'Student'} ${session.student?.lastName || ''}`}
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        <Calendar className="w-4 h-4 inline mr-1" />
+                        {session.requestedAt ? (
+                          <>
+                            {new Date(session.requestedAt).toLocaleDateString()} at{' '}
+                            {new Date(session.requestedAt).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </>
+                        ) : (
+                          'Date not specified'
+                        )}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {session.durationMinutes} min • {session.sessionType}
+                      </p>
+                      {session.notes && (
+                        <p className="text-sm text-gray-500 mt-2 italic bg-white p-2 rounded">
+                          "{session.notes}"
+                        </p>
+                      )}
+                    </div>
+                    <div className="ml-4 flex gap-2">
+                      <button
+                        onClick={() => handleConfirmSession(session)}
+                        className="flex items-center gap-1 px-3 py-2 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 transition-colors"
+                      >
+                        <Check className="w-4 h-4" />
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => handleRejectSession(session.id)}
+                        className="flex items-center gap-1 px-3 py-2 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Materials - Updated with Edit links */}
@@ -462,6 +562,150 @@ const CoachDashboard = () => {
               )}
             </div>
         </div>
+      </div>
+
+      {/* Session Confirmation Modal */}
+      {showConfirmModal && selectedSession && (
+        <ConfirmSessionModal
+          session={selectedSession}
+          onClose={() => {
+            setShowConfirmModal(false)
+            setSelectedSession(null)
+          }}
+          onSuccess={() => {
+            setShowConfirmModal(false)
+            setSelectedSession(null)
+            loadDashboardData()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// Confirm Session Modal Component
+const ConfirmSessionModal = ({ session, onClose, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    price: session.price || 50,
+    meetingLink: '',
+    location: ''
+  })
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      await sessionApi.confirmSession(session.id, {
+        price: formData.price,
+        meetingLink: session.sessionType === 'Online' ? formData.meetingLink : null,
+        location: session.sessionType === 'InPerson' ? formData.location : null
+      })
+      onSuccess()
+    } catch (error) {
+      alert('Failed to confirm session: ' + (error.message || 'Unknown error'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="text-lg font-semibold">Confirm Session Request</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-4 bg-gray-50 border-b">
+          <p className="text-sm text-gray-600">
+            <strong>Student:</strong> {session.studentName || `${session.student?.firstName} ${session.student?.lastName}`}
+          </p>
+          <p className="text-sm text-gray-600 mt-1">
+            <strong>Requested:</strong> {session.requestedAt ? new Date(session.requestedAt).toLocaleString() : 'Not specified'}
+          </p>
+          <p className="text-sm text-gray-600 mt-1">
+            <strong>Duration:</strong> {session.durationMinutes} minutes • {session.sessionType}
+          </p>
+          {session.notes && (
+            <p className="text-sm text-gray-600 mt-2">
+              <strong>Notes:</strong> "{session.notes}"
+            </p>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Session Price ($)
+            </label>
+            <input
+              type="number"
+              value={formData.price}
+              onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+              min={0}
+              step={5}
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            />
+          </div>
+
+          {session.sessionType === 'Online' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <LinkIcon className="w-4 h-4 inline mr-1" />
+                Meeting Link
+              </label>
+              <input
+                type="url"
+                value={formData.meetingLink}
+                onChange={(e) => setFormData({ ...formData, meetingLink: e.target.value })}
+                placeholder="https://zoom.us/j/... or Google Meet link"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Paste your Zoom, Google Meet, or other video call link
+              </p>
+            </div>
+          )}
+
+          {session.sessionType === 'InPerson' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <MapPin className="w-4 h-4 inline mr-1" />
+                Location
+              </label>
+              <input
+                type="text"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder="e.g., Central Park Courts, 123 Main St..."
+                required
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              />
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 flex items-center justify-center gap-2"
+            >
+              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              Confirm Session
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )

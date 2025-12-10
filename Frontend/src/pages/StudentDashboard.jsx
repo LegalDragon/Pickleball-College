@@ -490,37 +490,50 @@ const SessionsTab = ({ sessions, onRefresh }) => {
               <div className="flex items-start justify-between">
                 <div>
                   <h4 className="font-medium text-gray-900">
-                    Session with {session.coach?.firstName} {session.coach?.lastName}
+                    Session with {session.coachName || `${session.coach?.firstName || ''} ${session.coach?.lastName || ''}`}
                   </h4>
                   <p className="text-sm text-gray-600 mt-1">
-                    {new Date(session.scheduledAt).toLocaleDateString()} at{' '}
-                    {new Date(session.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <Calendar className="w-4 h-4 inline mr-1" />
+                    {new Date(session.requestedAt || session.scheduledAt).toLocaleDateString()} at{' '}
+                    {new Date(session.requestedAt || session.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
+                    <Clock className="w-4 h-4 inline mr-1" />
                     {session.durationMinutes} minutes - {session.sessionType}
                   </p>
+                  {session.location && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      📍 {session.location}
+                    </p>
+                  )}
                   {session.notes && (
-                    <p className="text-sm text-gray-500 mt-2">Notes: {session.notes}</p>
+                    <p className="text-sm text-gray-500 mt-2 italic">"{session.notes}"</p>
                   )}
                 </div>
                 <div className="text-right">
                   <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
                     {session.status}
                   </span>
-                  <p className="text-lg font-bold text-gray-900 mt-2">
-                    ${session.price?.toFixed(2)}
-                  </p>
+                  {session.price > 0 && (
+                    <p className="text-lg font-bold text-gray-900 mt-2">
+                      ${session.price?.toFixed(2)}
+                    </p>
+                  )}
                 </div>
               </div>
-              {session.meetingLink && session.status === 'Confirmed' && (
-                <a
-                  href={session.meetingLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block mt-3 px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600"
-                >
-                  Join Meeting
-                </a>
+              {session.status === 'Confirmed' && (
+                <div className="mt-3 flex gap-2 flex-wrap">
+                  {session.meetingLink && (
+                    <a
+                      href={session.meetingLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600"
+                    >
+                      Join Meeting
+                    </a>
+                  )}
+                </div>
               )}
             </div>
           ))}
@@ -626,7 +639,8 @@ const SessionRequestModal = ({ coach, onClose, onSuccess }) => {
     sessionType: 'Online',
     requestedAt: '',
     durationMinutes: 60,
-    notes: ''
+    notes: '',
+    preferredLocation: ''
   })
   const [submitting, setSubmitting] = useState(false)
 
@@ -636,8 +650,12 @@ const SessionRequestModal = ({ coach, onClose, onSuccess }) => {
     try {
       await sessionApi.requestSession({
         coachId: coach.id,
-        ...formData,
-        requestedAt: new Date(formData.requestedAt).toISOString()
+        sessionType: formData.sessionType,
+        requestedAt: new Date(formData.requestedAt).toISOString(),
+        durationMinutes: formData.durationMinutes,
+        notes: formData.sessionType === 'InPerson' && formData.preferredLocation
+          ? `Preferred location: ${formData.preferredLocation}${formData.notes ? '. ' + formData.notes : ''}`
+          : formData.notes
       })
       onSuccess()
     } catch (error) {
@@ -649,7 +667,7 @@ const SessionRequestModal = ({ coach, onClose, onSuccess }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="text-lg font-semibold">Request Session with {coach.firstName}</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
@@ -665,10 +683,26 @@ const SessionRequestModal = ({ coach, onClose, onSuccess }) => {
               onChange={(e) => setFormData({ ...formData, sessionType: e.target.value })}
               className="w-full border border-gray-300 rounded-lg px-3 py-2"
             >
-              <option value="Online">Online</option>
+              <option value="Online">Online (Video Call)</option>
               <option value="InPerson">In Person</option>
             </select>
           </div>
+
+          {formData.sessionType === 'InPerson' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Location</label>
+              <input
+                type="text"
+                value={formData.preferredLocation}
+                onChange={(e) => setFormData({ ...formData, preferredLocation: e.target.value })}
+                placeholder="e.g., Local pickleball courts, your address..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Coach will confirm or suggest an alternative location
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Date & Time</label>
@@ -677,21 +711,22 @@ const SessionRequestModal = ({ coach, onClose, onSuccess }) => {
               value={formData.requestedAt}
               onChange={(e) => setFormData({ ...formData, requestedAt: e.target.value })}
               required
+              min={new Date().toISOString().slice(0, 16)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
             <select
               value={formData.durationMinutes}
               onChange={(e) => setFormData({ ...formData, durationMinutes: Number(e.target.value) })}
               className="w-full border border-gray-300 rounded-lg px-3 py-2"
             >
               <option value={30}>30 minutes</option>
-              <option value={60}>60 minutes</option>
-              <option value={90}>90 minutes</option>
-              <option value={120}>120 minutes</option>
+              <option value={60}>1 hour</option>
+              <option value={90}>1.5 hours</option>
+              <option value={120}>2 hours</option>
             </select>
           </div>
 
@@ -707,9 +742,14 @@ const SessionRequestModal = ({ coach, onClose, onSuccess }) => {
           </div>
 
           {coach.coachProfile?.hourlyRate && (
-            <p className="text-sm text-gray-600">
-              Estimated cost: <strong>${(coach.coachProfile.hourlyRate * formData.durationMinutes / 60).toFixed(2)}</strong>
-            </p>
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600">
+                Estimated cost: <strong className="text-primary-600">${(coach.coachProfile.hourlyRate * formData.durationMinutes / 60).toFixed(2)}</strong>
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Final price will be confirmed by the coach
+              </p>
+            </div>
           )}
 
           <div className="flex gap-3 pt-4">
