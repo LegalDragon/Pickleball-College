@@ -29,6 +29,9 @@ public class ApplicationDbContext : DbContext
     // Content Types for Materials
     public DbSet<ContentType> ContentTypes { get; set; }
 
+    // Ratings
+    public DbSet<Rating> Ratings { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
@@ -223,6 +226,24 @@ public class ApplicationDbContext : DbContext
                     CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
                 }
             );
+        });
+
+        // Rating configuration
+        modelBuilder.Entity<Rating>(entity =>
+        {
+            entity.HasOne(r => r.User)
+                  .WithMany()
+                  .HasForeignKey(r => r.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(r => r.RatableType).IsRequired().HasMaxLength(50);
+            entity.Property(r => r.Stars).IsRequired();
+            entity.Property(r => r.Review).HasMaxLength(1000);
+
+            // Composite index for unique rating per user per ratable item
+            entity.HasIndex(r => new { r.UserId, r.RatableType, r.RatableId }).IsUnique();
+            // Index for querying ratings by ratable item
+            entity.HasIndex(r => new { r.RatableType, r.RatableId });
         });
     }
 }

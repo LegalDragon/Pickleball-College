@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useParams, useNavigate } from 'react-router-dom'
-import { courseApi, materialApi, assetApi, getAssetUrl } from '../services/api'
+import { courseApi, materialApi, assetApi, ratingApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import {
   Upload, ArrowLeft, BookOpen, Loader2, Eye, EyeOff, Plus,
-  GripVertical, Trash2, Video, Image, FileText, Link, X, Check
+  GripVertical, Trash2, Video, Image, FileText, Link, X, Check, Star
 } from 'lucide-react'
+import StarRating, { RatingDisplay } from '../components/StarRating'
 
 const CourseEditor = () => {
   const [course, setCourse] = useState(null)
@@ -18,6 +19,8 @@ const CourseEditor = () => {
   const [saving, setSaving] = useState(false)
   const [togglingPublish, setTogglingPublish] = useState(false)
   const [showAddMaterial, setShowAddMaterial] = useState(false)
+  const [ratingSummary, setRatingSummary] = useState(null)
+  const [reviews, setReviews] = useState([])
 
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -34,7 +37,20 @@ const CourseEditor = () => {
   useEffect(() => {
     loadCourse()
     loadAvailableMaterials()
+    loadRatings()
   }, [id])
+
+  const loadRatings = async () => {
+    try {
+      const summary = await ratingApi.getSummary('Course', id)
+      setRatingSummary(summary)
+
+      const allRatings = await ratingApi.getRatings('Course', id)
+      setReviews(allRatings)
+    } catch (error) {
+      console.error('Failed to load ratings:', error)
+    }
+  }
 
   const loadCourse = async () => {
     try {
@@ -478,6 +494,51 @@ const CourseEditor = () => {
               <strong>Locked</strong> materials require course purchase to view.
             </p>
           </div>
+        </div>
+
+        {/* Ratings Section */}
+        <div className="bg-white rounded-lg shadow-md p-6 mt-6">
+          <div className="flex items-center mb-6">
+            <Star className="w-6 h-6 text-yellow-400 mr-2" />
+            <h2 className="text-xl font-bold text-gray-900">Course Ratings & Reviews</h2>
+          </div>
+
+          {ratingSummary && ratingSummary.totalRatings > 0 ? (
+            <>
+              <RatingDisplay summary={ratingSummary} />
+
+              {/* Reviews List */}
+              {reviews.filter(r => r.review).length > 0 && (
+                <div className="border-t border-gray-200 pt-6 mt-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Student Reviews</h3>
+                  <div className="space-y-4">
+                    {reviews.filter(r => r.review).map((review) => (
+                      <div key={review.id} className="border-b border-gray-100 pb-4 last:border-0">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">{review.userName}</p>
+                            <StarRating rating={review.stars} size={14} />
+                          </div>
+                          <span className="text-sm text-gray-500">
+                            {new Date(review.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-gray-700">{review.review}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">No ratings yet</p>
+              <p className="text-sm text-gray-400 mt-1">
+                Ratings will appear here once students review your course
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Add Material Modal */}

@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react'
-import { materialApi, getAssetUrl } from '../services/api'
+import { useNavigate } from 'react-router-dom'
+import { materialApi, ratingApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Search, Filter, Play, DollarSign } from 'lucide-react'
+import { Search, Filter, Play, DollarSign, Star } from 'lucide-react'
+import StarRating from '../components/StarRating'
 
 const Marketplace = () => {
   const [materials, setMaterials] = useState([])
+  const [ratingSummaries, setRatingSummaries] = useState({})
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const { user } = useAuth()
+  const navigate = useNavigate()
 
   useEffect(() => {
     loadMaterials()
@@ -17,6 +21,17 @@ const Marketplace = () => {
     try {
       const data = await materialApi.getMaterials()
       setMaterials(data)
+
+      // Load rating summaries for all materials
+      if (data.length > 0) {
+        const materialIds = data.map(m => m.id)
+        try {
+          const summaries = await ratingApi.getSummaries('Material', materialIds)
+          setRatingSummaries(summaries)
+        } catch (error) {
+          console.error('Failed to load rating summaries:', error)
+        }
+      }
     } catch (error) {
       console.error('Failed to load materials:', error)
     } finally {
@@ -87,54 +102,74 @@ const Marketplace = () => {
 
         {/* Materials Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredMaterials.map((material) => (
-            <div key={material.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="h-48 bg-gray-200 relative">
-                {material.thumbnailUrl ? (
-                  <img
-                    src={getAssetUrl(material.thumbnailUrl)}
-                    alt={material.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-200">
-                    <Play className="w-12 h-12 text-primary-500" />
-                  </div>
-                )}
-                <div className="absolute top-4 right-4 bg-primary-500 text-white px-2 py-1 rounded text-sm font-medium">
-                  ${material.price}
-                </div>
-              </div>
-              
-              <div className="p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{material.title}</h3>
-                <p className="text-gray-600 mb-4 line-clamp-2">{material.description}</p>
-                
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center mr-2">
-                      <span className="text-sm font-medium text-gray-600">
-                        {material.coach.firstName[0]}{material.coach.lastName[0]}
-                      </span>
+          {filteredMaterials.map((material) => {
+            const summary = ratingSummaries[material.id]
+            return (
+              <div
+                key={material.id}
+                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => navigate(`/coach/materials/${material.id}`)}
+              >
+                <div className="h-48 bg-gray-200 relative">
+                  {material.thumbnailUrl ? (
+                    <img
+                      src={getAssetUrl(material.thumbnailUrl)}
+                      alt={material.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-200">
+                      <Play className="w-12 h-12 text-primary-500" />
                     </div>
-                    <span className="text-sm text-gray-600">
-                      {material.coach.firstName} {material.coach.lastName}
-                    </span>
+                  )}
+                  <div className="absolute top-4 right-4 bg-primary-500 text-white px-2 py-1 rounded text-sm font-medium">
+                    ${material.price}
                   </div>
-                  <span className="text-sm text-gray-500 capitalize">{material.contentType}</span>
                 </div>
 
-                <button
-                  onClick={() => handlePurchase(material.id)}
-                  disabled={!user}
-                  className="w-full bg-primary-500 text-white py-2 px-4 rounded-lg hover:bg-primary-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                >
-                  <DollarSign className="w-4 h-4 mr-2" />
-                  {user ? 'Purchase Now' : 'Login to Purchase'}
-                </button>
+                <div className="p-6">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">{material.title}</h3>
+                  <p className="text-gray-600 mb-3 line-clamp-2">{material.description}</p>
+
+                  {/* Rating */}
+                  <div className="flex items-center mb-3">
+                    <StarRating
+                      rating={summary?.averageRating || 0}
+                      size={16}
+                      showValue
+                      totalRatings={summary?.totalRatings}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center mr-2">
+                        <span className="text-sm font-medium text-gray-600">
+                          {material.coach.firstName[0]}{material.coach.lastName[0]}
+                        </span>
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        {material.coach.firstName} {material.coach.lastName}
+                      </span>
+                    </div>
+                    <span className="text-sm text-gray-500 capitalize">{material.contentType}</span>
+                  </div>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handlePurchase(material.id)
+                    }}
+                    disabled={!user}
+                    className="w-full bg-primary-500 text-white py-2 px-4 rounded-lg hover:bg-primary-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                  >
+                    <DollarSign className="w-4 h-4 mr-2" />
+                    {user ? 'Purchase Now' : 'Login to Purchase'}
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         {filteredMaterials.length === 0 && (

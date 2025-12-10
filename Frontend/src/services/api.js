@@ -351,4 +351,31 @@ export const assetApi = {
   getAllowedTypes: () => api.get('/assets/allowed-types')
 }
 
+// Rating API
+export const ratingApi = {
+  // Create or update a rating
+  rate: (ratableType, ratableId, stars, review = null) =>
+    api.post('/ratings', { ratableType, ratableId, stars, review }),
+
+  // Get current user's rating for an item
+  getMyRating: (ratableType, ratableId) =>
+    api.get(`/ratings/${ratableType}/${ratableId}/my-rating`),
+
+  // Get all ratings for an item
+  getRatings: (ratableType, ratableId) =>
+    api.get(`/ratings/${ratableType}/${ratableId}`),
+
+  // Get rating summary for an item
+  getSummary: (ratableType, ratableId) =>
+    api.get(`/ratings/${ratableType}/${ratableId}/summary`),
+
+  // Get rating summaries for multiple items
+  getSummaries: (ratableType, ratableIds) =>
+    api.post(`/ratings/${ratableType}/summaries`, ratableIds),
+
+  // Delete a rating
+  deleteRating: (ratableType, ratableId) =>
+    api.delete(`/ratings/${ratableType}/${ratableId}`)
+}
+
 export default api

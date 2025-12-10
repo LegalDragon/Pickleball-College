@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { materialApi } from '../services/api'
+import { materialApi, ratingApi } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Video, Image, FileText, Link, ArrowLeft } from 'lucide-react'
+import { Video, Image, FileText, Link, ArrowLeft, Star } from 'lucide-react'
+import StarRating, { RatingDisplay, RatingForm } from '../components/StarRating'
 
 const MaterialDetail = () => {
   const [material, setMaterial] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [ratingSummary, setRatingSummary] = useState(null)
+  const [myRating, setMyRating] = useState(null)
+  const [reviews, setReviews] = useState([])
+  const [showRatingForm, setShowRatingForm] = useState(false)
+  const [submittingRating, setSubmittingRating] = useState(false)
   const { user } = useAuth()
   const navigate = useNavigate()
   const { id } = useParams()
@@ -14,6 +20,12 @@ const MaterialDetail = () => {
   useEffect(() => {
     loadMaterial()
   }, [id])
+
+  useEffect(() => {
+    if (material?.id) {
+      loadRatings()
+    }
+  }, [material?.id, user])
 
   const loadMaterial = async () => {
     try {
@@ -33,6 +45,49 @@ const MaterialDetail = () => {
       navigate('/coach/dashboard')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadRatings = async () => {
+    try {
+      // Load rating summary
+      const summary = await ratingApi.getSummary('Material', id)
+      setRatingSummary(summary)
+
+      // Load all reviews
+      const allRatings = await ratingApi.getRatings('Material', id)
+      setReviews(allRatings)
+
+      // Load user's rating if logged in
+      if (user) {
+        try {
+          const userRating = await ratingApi.getMyRating('Material', id)
+          setMyRating(userRating)
+        } catch {
+          setMyRating(null)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load ratings:', error)
+    }
+  }
+
+  const handleRatingSubmit = async ({ stars, review }) => {
+    if (!user) {
+      alert('Please log in to rate this material')
+      return
+    }
+
+    setSubmittingRating(true)
+    try {
+      await ratingApi.rate('Material', parseInt(id), stars, review)
+      setShowRatingForm(false)
+      await loadRatings()
+    } catch (error) {
+      console.error('Failed to submit rating:', error)
+      alert('Failed to submit rating')
+    } finally {
+      setSubmittingRating(false)
     }
   }
 
@@ -155,12 +210,89 @@ const MaterialDetail = () => {
                 <p className="text-xl font-bold text-gray-900">{material.purchases || 0}</p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-500">Rating</p>
+                <div className="flex items-center">
+                  <StarRating rating={ratingSummary?.averageRating || 0} size={16} />
+                  <span className="ml-2 text-lg font-medium text-gray-900">
+                    {ratingSummary?.averageRating?.toFixed(1) || '0.0'}
+                  </span>
+                </div>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-500">Reviews</p>
+                <p className="text-xl font-bold text-gray-900">{ratingSummary?.totalRatings || 0}</p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-500">Created</p>
                 <p className="text-lg font-medium text-gray-900">
                   {material.createdAt ? new Date(material.createdAt).toLocaleDateString() : 'Unknown'}
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Ratings Section */}
+        <div className="bg-white rounded-lg shadow-md overflow-hidden mt-6">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">Ratings & Reviews</h2>
+              {user && user.id !== material.coachId && (
+                <button
+                  onClick={() => setShowRatingForm(!showRatingForm)}
+                  className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+                >
+                  {myRating ? 'Update Rating' : 'Rate This Material'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="p-6">
+            {/* Rating Form */}
+            {showRatingForm && (
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <RatingForm
+                  initialRating={myRating?.stars || 0}
+                  initialReview={myRating?.review || ''}
+                  onSubmit={handleRatingSubmit}
+                  onCancel={() => setShowRatingForm(false)}
+                  submitting={submittingRating}
+                />
+              </div>
+            )}
+
+            {/* Rating Summary */}
+            {ratingSummary && ratingSummary.totalRatings > 0 ? (
+              <div className="mb-6">
+                <RatingDisplay summary={ratingSummary} />
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-4">No ratings yet. Be the first to rate!</p>
+            )}
+
+            {/* Reviews List */}
+            {reviews.length > 0 && (
+              <div className="border-t border-gray-200 pt-6 mt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Reviews</h3>
+                <div className="space-y-4">
+                  {reviews.filter(r => r.review).map((review) => (
+                    <div key={review.id} className="border-b border-gray-100 pb-4 last:border-0">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">{review.userName}</p>
+                          <StarRating rating={review.stars} size={14} />
+                        </div>
+                        <span className="text-sm text-gray-500">
+                          {new Date(review.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-gray-700">{review.review}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
