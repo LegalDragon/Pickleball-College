@@ -18,11 +18,35 @@ const MaterialDetail = () => {
   const loadMaterial = async () => {
     try {
       setLoading(true)
-      const data = await materialApi.getMaterial(id)
-      setMaterial(data)
+      const response = await materialApi.getMaterial(id)
+
+      console.log('MaterialDetail - API response:', response)
+
+      // Handle various API response structures
+      let materialData = null
+
+      if (response && typeof response === 'object') {
+        if (response.data && typeof response.data === 'object' && (response.data.id || response.data.Id)) {
+          // Wrapped: { success: true, data: { id, title, ... } }
+          materialData = response.data
+        } else if (response.id || response.Id) {
+          // Direct object: { id, title, ... }
+          materialData = response
+        } else if (response.success === false) {
+          throw new Error(response.message || 'Failed to load material')
+        }
+      }
+
+      console.log('MaterialDetail - Extracted material:', materialData)
+
+      if (!materialData) {
+        throw new Error('Material not found')
+      }
+
+      setMaterial(materialData)
     } catch (error) {
       console.error('Failed to load material:', error)
-      alert('Failed to load material')
+      alert('Failed to load material: ' + (error.message || 'Unknown error'))
       navigate('/coach/dashboard')
     } finally {
       setLoading(false)
@@ -82,15 +106,15 @@ const MaterialDetail = () => {
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{material.title}</h1>
+                <h1 className="text-2xl font-bold text-gray-900">{material.title || material.Title || 'Untitled'}</h1>
                 <div className="flex items-center mt-2">
-                  {getContentTypeIcon(material.contentType)}
+                  {getContentTypeIcon(material.contentType || material.ContentType)}
                   <span className="ml-2 text-sm text-gray-500 capitalize">
-                    {material.contentType} • ${material.price.toFixed(2)}
+                    {material.contentType || material.ContentType || 'Unknown'} • ${(material.price ?? material.Price ?? 0).toFixed(2)}
                   </span>
                 </div>
               </div>
-              {user?.id === material.coachId && (
+              {user?.id === (material.coachId || material.CoachId) && (
                 <button
                   onClick={() => navigate(`/coach/materials/edit/${material.id || material._id}`)}
                   className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
@@ -105,23 +129,23 @@ const MaterialDetail = () => {
           <div className="p-6">
             <div className="mb-6">
               <h2 className="text-lg font-medium text-gray-900 mb-2">Description</h2>
-              <p className="text-gray-700 whitespace-pre-wrap">{material.description}</p>
+              <p className="text-gray-700 whitespace-pre-wrap">{material.description || material.Description || 'No description'}</p>
             </div>
 
             {/* Content Preview */}
             <div className="mb-6">
               <h2 className="text-lg font-medium text-gray-900 mb-2">Content</h2>
-              {material.contentType === 'Link' && material.externalLink ? (
+              {(material.contentType || material.ContentType) === 'Link' && (material.externalLink || material.ExternalLink) ? (
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex items-center mb-2">
                     <Link className="w-5 h-5 mr-2 text-gray-500" />
-                    <a 
-                      href={material.externalLink}
+                    <a
+                      href={material.externalLink || material.ExternalLink}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary-600 hover:text-primary-700 break-all"
                     >
-                      {material.externalLink}
+                      {material.externalLink || material.ExternalLink}
                     </a>
                   </div>
                   <p className="text-sm text-gray-500">Click to open external link</p>
@@ -129,13 +153,13 @@ const MaterialDetail = () => {
               ) : (
                 <div className="bg-gray-50 p-4 rounded-lg text-center">
                   <div className="flex items-center justify-center mb-4">
-                    {getContentTypeIcon(material.contentType)}
+                    {getContentTypeIcon(material.contentType || material.ContentType)}
                     <span className="ml-2 text-gray-700">Content uploaded as file</span>
                   </div>
                   <p className="text-sm text-gray-500">
-                    {material.contentType === 'Video' && 'Video file is available for students'}
-                    {material.contentType === 'Image' && 'Image file is available for students'}
-                    {material.contentType === 'Document' && 'Document file is available for students'}
+                    {(material.contentType || material.ContentType) === 'Video' && 'Video file is available for students'}
+                    {(material.contentType || material.ContentType) === 'Image' && 'Image file is available for students'}
+                    {(material.contentType || material.ContentType) === 'Document' && 'Document file is available for students'}
                   </p>
                 </div>
               )}
@@ -145,12 +169,12 @@ const MaterialDetail = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-500">Purchases</p>
-                <p className="text-xl font-bold text-gray-900">{material.purchases || 0}</p>
+                <p className="text-xl font-bold text-gray-900">{material.purchases || material.Purchases || 0}</p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-500">Created</p>
                 <p className="text-lg font-medium text-gray-900">
-                  {new Date(material.createdAt).toLocaleDateString()}
+                  {(material.createdAt || material.CreatedAt) ? new Date(material.createdAt || material.CreatedAt).toLocaleDateString() : 'Unknown'}
                 </p>
               </div>
             </div>
