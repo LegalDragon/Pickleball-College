@@ -102,15 +102,28 @@ public class RatingService : IRatingService
 
     public async Task<Dictionary<int, RatingSummaryDto>> GetRatingSummariesAsync(string ratableType, List<int> ratableIds)
     {
+        var result = new Dictionary<int, RatingSummaryDto>();
+
+        // Handle empty list
+        if (ratableIds == null || ratableIds.Count == 0)
+        {
+            return result;
+        }
+
+        // Convert to array to avoid EF Core query generation issues with List<T>.Contains
+        var idsArray = ratableIds.ToArray();
+
+        // Query all ratings for the given type that match any of the IDs
         var ratings = await _context.Ratings
-            .Where(r => r.RatableType == ratableType && ratableIds.Contains(r.RatableId))
+            .Where(r => r.RatableType == ratableType)
             .ToListAsync();
 
-        var result = new Dictionary<int, RatingSummaryDto>();
+        // Filter in memory to avoid SQL Server syntax issues with large IN clauses
+        var filteredRatings = ratings.Where(r => idsArray.Contains(r.RatableId)).ToList();
 
         foreach (var id in ratableIds)
         {
-            var itemRatings = ratings.Where(r => r.RatableId == id).ToList();
+            var itemRatings = filteredRatings.Where(r => r.RatableId == id).ToList();
             result[id] = CalculateSummary(ratableType, id, itemRatings);
         }
 
