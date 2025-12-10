@@ -4,6 +4,7 @@ import { materialApi, ratingApi } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { Video, Image, FileText, Link, ArrowLeft, Star } from 'lucide-react'
 import StarRating, { RatingDisplay, RatingForm } from '../components/StarRating'
+import TagSelector from '../components/TagSelector'
 
 const MaterialDetail = () => {
   const [material, setMaterial] = useState(null)
@@ -228,6 +229,15 @@ const MaterialDetail = () => {
                   {material.createdAt ? new Date(material.createdAt).toLocaleDateString() : 'Unknown'}
                 </p>
               </div>
+            </div>
+
+            {/* Tags */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <TagSelector
+                objectType="Material"
+                objectId={material.id}
+                readOnly={user?.id !== material.coachId}
+              />
             </div>
           </div>
         </div>

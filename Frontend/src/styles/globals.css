@@ -343,6 +343,86 @@ a:hover {
   grid-template-columns: repeat(4, 1fr);
 }
 
+/* Header/Hero Section */
+.header {
+  padding: 6rem 0;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.header-content {
+  position: relative;
+  z-index: 1;
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.header h1 {
+  font-size: 3.5rem;
+  color: white;
+  margin-bottom: 1.5rem;
+}
+
+.header .subtitle {
+  font-size: 1.25rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 2rem;
+}
+
+.header .btn-group {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .header h1 {
+    font-size: 2.5rem;
+  }
+
+  .header .subtitle {
+    font-size: 1rem;
+  }
+}
+
+/* CTA Section */
+.cta {
+  padding: 5rem 0;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.cta h2 {
+  font-size: 2.5rem;
+  color: white;
+  margin-bottom: 1rem;
+}
+
+.cta p {
+  font-size: 1.125rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 2rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.cta .btn {
+  background: white;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.cta .btn:hover {
+  background: var(--gray-100);
+  transform: translateY(-2px);
+}
+
 /* Hero Section */
 .hero {
   padding: 6rem 0;

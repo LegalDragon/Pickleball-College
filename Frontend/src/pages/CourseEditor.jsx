@@ -8,6 +8,7 @@ import {
   GripVertical, Trash2, Video, Image, FileText, Link, X, Check, Star
 } from 'lucide-react'
 import StarRating, { RatingDisplay } from '../components/StarRating'
+import TagSelector from '../components/TagSelector'
 
 const CourseEditor = () => {
   const [course, setCourse] = useState(null)
@@ -494,6 +495,14 @@ const CourseEditor = () => {
               <strong>Locked</strong> materials require course purchase to view.
             </p>
           </div>
+        </div>
+
+        {/* Tags Section */}
+        <div className="bg-white rounded-lg shadow-md p-6 mt-6">
+          <TagSelector
+            objectType="Course"
+            objectId={parseInt(id)}
+          />
         </div>
 
         {/* Ratings Section */}

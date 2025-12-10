@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const CTA = () => {
   return (
@@ -6,7 +7,7 @@ const CTA = () => {
       <div className="container">
         <h2>Ready to Transform Your Game?</h2>
         <p>Join thousands of players who have improved their skills with Pickleball.College</p>
-        <button className="btn btn-primary">Get Started Today</button>
+        <Link to="/Marketplace" className="btn btn-primary">Browse Courses</Link>
       </div>
     </section>
   );

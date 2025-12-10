@@ -378,4 +378,27 @@ export const ratingApi = {
     api.delete(`/ratings/${ratableType}/${ratableId}`)
 }
 
+// Tag API
+export const tagApi = {
+  // Get all tags for an object
+  getTags: (objectType, objectId) =>
+    api.get(`/tags/${objectType}/${objectId}`),
+
+  // Add a tag to an object
+  addTag: (objectType, objectId, tagName) =>
+    api.post('/tags', { objectType, objectId, tagName }),
+
+  // Remove a tag from an object
+  removeTag: (objectType, objectId, tagId) =>
+    api.delete(`/tags/${objectType}/${objectId}/${tagId}`),
+
+  // Get common/suggested tags for an object type
+  getCommonTags: (objectType, objectId, limit = 10) =>
+    api.get(`/tags/${objectType}/${objectId}/common?limit=${limit}`),
+
+  // Search tags by name
+  searchTags: (query, limit = 10) =>
+    api.get(`/tags/search?query=${encodeURIComponent(query)}&limit=${limit}`)
+}
+
 export default api
