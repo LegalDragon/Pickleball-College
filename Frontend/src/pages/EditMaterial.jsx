@@ -42,28 +42,37 @@ const EditMaterial = () => {
 
     try {
       setLoadingMaterial(true)
-      const material = await materialApi.getMaterial(id)
-      
-      if (material.coachId !== user.id && user.role !== 'Admin') {
+      const response = await materialApi.getMaterial(id)
+
+      // Handle wrapped API response - extract material data
+      const material = response?.data || response
+
+      if (!material) {
+        throw new Error('Material not found')
+      }
+
+      // Check authorization - handle both coachId and CoachId (case variations)
+      const materialCoachId = material.coachId || material.CoachId
+      if (materialCoachId !== user.id && user.role !== 'Admin') {
         alert('You are not authorized to edit this material')
         navigate('/coach/dashboard')
         return
       }
 
       setCurrentMaterial(material)
-      
+
       // Reset form with material data
       reset({
-        title: material.title,
-        description: material.description,
-        contentType: material.contentType,
-        externalLink: material.externalLink || '',
-        price: material.price
+        title: material.title || material.Title || '',
+        description: material.description || material.Description || '',
+        contentType: material.contentType || material.ContentType || 'Video',
+        externalLink: material.externalLink || material.ExternalLink || '',
+        price: material.price || material.Price || 0
       })
 
     } catch (error) {
       console.error('Failed to load material:', error)
-      alert('Failed to load material: ' + error.message)
+      alert('Failed to load material: ' + (error.message || 'Unknown error'))
       navigate('/coach/dashboard')
     } finally {
       setLoadingMaterial(false)
