@@ -38,6 +38,49 @@ public class MaterialService : IMaterialService
         return await GetMaterialDtoAsync(material.Id);
     }
 
+    public async Task<MaterialDto> UpdateMaterialAsync(int materialId, int coachId, UpdateMaterialRequest request, string? videoUrl, string? thumbnailUrl)
+    {
+        var material = await _context.TrainingMaterials
+            .FirstOrDefaultAsync(m => m.Id == materialId && m.CoachId == coachId);
+
+        if (material == null)
+        {
+            throw new ArgumentException("Material not found or unauthorized");
+        }
+
+        // Update basic fields
+        material.Title = request.Title;
+        material.Description = request.Description;
+        material.ContentType = request.ContentType;
+        material.Price = request.Price;
+        material.ExternalLink = request.ExternalLink;
+        material.UpdatedAt = DateTime.UtcNow;
+
+        // Update video URL if provided (from file upload or request)
+        if (!string.IsNullOrEmpty(videoUrl))
+        {
+            material.VideoUrl = videoUrl;
+        }
+        else if (!string.IsNullOrEmpty(request.VideoUrl))
+        {
+            material.VideoUrl = request.VideoUrl;
+        }
+
+        // Update thumbnail URL if provided (from file upload or request)
+        if (!string.IsNullOrEmpty(thumbnailUrl))
+        {
+            material.ThumbnailUrl = thumbnailUrl;
+        }
+        else if (!string.IsNullOrEmpty(request.ThumbnailUrl))
+        {
+            material.ThumbnailUrl = request.ThumbnailUrl;
+        }
+
+        await _context.SaveChangesAsync();
+
+        return await GetMaterialDtoAsync(materialId);
+    }
+
     public async Task<PurchaseResult> PurchaseMaterialAsync(int studentId, int materialId)
     {
         var material = await _context.TrainingMaterials

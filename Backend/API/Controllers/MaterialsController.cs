@@ -77,6 +77,46 @@ public class MaterialsController : ControllerBase
         return Ok(material);
     }
 
+    [HttpPut("{materialId}")]
+    [Authorize(Roles = "Coach,Admin")]
+    public async Task<ActionResult<MaterialDto>> UpdateMaterial(int materialId, [FromForm] UpdateMaterialRequest request)
+    {
+        var coachIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(coachIdStr) || !int.TryParse(coachIdStr, out var coachId))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            string? videoUrl = null;
+            string? thumbnailUrl = null;
+
+            // Upload new video file if provided
+            if (request.VideoFile != null)
+            {
+                videoUrl = await _fileStorageService.UploadFileAsync(request.VideoFile, "videos");
+            }
+
+            // Upload new thumbnail file if provided
+            if (request.ThumbnailFile != null)
+            {
+                thumbnailUrl = await _fileStorageService.UploadFileAsync(request.ThumbnailFile, "thumbnails");
+            }
+
+            var material = await _materialService.UpdateMaterialAsync(materialId, coachId, request, videoUrl, thumbnailUrl);
+            return Ok(material);
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to update material: {ex.Message}");
+        }
+    }
+
     [HttpPost("{materialId}/purchase")]
     public async Task<ActionResult<PurchaseResult>> PurchaseMaterial(int materialId)
     {
