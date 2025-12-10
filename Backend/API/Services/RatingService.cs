@@ -136,7 +136,7 @@ public class RatingService : IRatingService
         return ratableType switch
         {
             "Material" => await _context.TrainingMaterials.AnyAsync(m => m.Id == ratableId),
-            "Coach" => await _context.Users.AnyAsync(u => u.Id == ratableId && u.Role == UserRole.Coach),
+            "Coach" => await _context.Users.AnyAsync(u => u.Id == ratableId && u.Role == "Coach"),
             "Course" => await _context.Courses.AnyAsync(c => c.Id == ratableId),
             _ => false
         };
@@ -151,7 +151,7 @@ public class RatingService : IRatingService
             Id = rating.Id,
             UserId = rating.UserId,
             UserName = user != null ? $"{user.FirstName} {user.LastName}" : "Unknown User",
-            UserAvatar = user?.AvatarUrl,
+            UserAvatar = user?.ProfileImageUrl,
             RatableType = rating.RatableType,
             RatableId = rating.RatableId,
             Stars = rating.Stars,
