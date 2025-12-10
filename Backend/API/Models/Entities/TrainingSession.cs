@@ -8,18 +8,27 @@ public class TrainingSession
     public int CoachId { get; set; }
     public int StudentId { get; set; }
     public int? MaterialId { get; set; }
-    
+
     [Required]
     public string SessionType { get; set; } = "Online";
-    
+
+    // RequestedAt = when student requested, ScheduledAt = confirmed time by coach
+    public DateTime? RequestedAt { get; set; }
     public DateTime ScheduledAt { get; set; }
     public int DurationMinutes { get; set; }
     public decimal Price { get; set; }
-    public string Status { get; set; } = "Scheduled";
+
+    // Status: Pending, Confirmed, Completed, Cancelled
+    public string Status { get; set; } = "Pending";
+
     public string? MeetingLink { get; set; }
     public string? Location { get; set; }
+
+    [MaxLength(1000)]
+    public string? Notes { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    
+
     public User Coach { get; set; } = null!;
     public User Student { get; set; } = null!;
     public TrainingMaterial? Material { get; set; }

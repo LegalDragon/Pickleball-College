@@ -36,6 +36,9 @@ public class ApplicationDbContext : DbContext
     public DbSet<TagDefinition> TagDefinitions { get; set; }
     public DbSet<ObjectTag> ObjectTags { get; set; }
 
+    // Video Review Requests
+    public DbSet<VideoReviewRequest> VideoReviewRequests { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
@@ -275,6 +278,34 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(ot => new { ot.TagId, ot.ObjectType, ot.ObjectId }).IsUnique();
             // Index for querying tags by object
             entity.HasIndex(ot => new { ot.ObjectType, ot.ObjectId });
+        });
+
+        // VideoReviewRequest configuration
+        modelBuilder.Entity<VideoReviewRequest>(entity =>
+        {
+            entity.HasOne(v => v.Student)
+                  .WithMany()
+                  .HasForeignKey(v => v.StudentId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(v => v.TargetCoach)
+                  .WithMany()
+                  .HasForeignKey(v => v.CoachId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(v => v.AcceptedByCoach)
+                  .WithMany()
+                  .HasForeignKey(v => v.AcceptedByCoachId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(v => v.Title).IsRequired().HasMaxLength(200);
+            entity.Property(v => v.VideoUrl).IsRequired().HasMaxLength(500);
+            entity.Property(v => v.Status).IsRequired().HasMaxLength(50);
+
+            // Index for finding open requests
+            entity.HasIndex(v => v.Status);
+            entity.HasIndex(v => v.StudentId);
+            entity.HasIndex(v => v.CoachId);
         });
     }
 }

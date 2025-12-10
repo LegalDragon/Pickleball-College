@@ -159,24 +159,34 @@ export const materialApi = {
 }
 
 export const sessionApi = {
-  scheduleSession: (sessionData) => 
+  scheduleSession: (sessionData) =>
     api.post('/sessions', sessionData),
+
+  // Student requests a session with a coach (pending confirmation)
+  requestSession: (data) =>
+    api.post('/sessions/request', data),
+
+  // Coach confirms a pending session
+  confirmSession: (sessionId, data) =>
+    api.post(`/sessions/${sessionId}/confirm`, data),
+
+  // Get pending sessions for coach
+  getPendingSessions: () =>
+    api.get('/sessions/pending'),
 
   getCoachSessions: (coachId) => {
     console.log('Getting sessions for coach:', coachId);
-    // Try different endpoint patterns
     return api.get(`/sessions/coach/${coachId}`)
       .catch(error => {
         console.log('Coach sessions with ID failed, trying without ID...');
-        // Try without ID if your backend gets coach ID from token
         return api.get('/sessions/coach');
       });
   },
 
-  getStudentSessions: () => 
+  getStudentSessions: () =>
     api.get('/sessions/student'),
 
-  cancelSession: (sessionId) => 
+  cancelSession: (sessionId) =>
     api.delete(`/sessions/${sessionId}`)
 }
 
@@ -399,6 +409,59 @@ export const tagApi = {
   // Search tags by name
   searchTags: (query, limit = 10) =>
     api.get(`/tags/search?query=${encodeURIComponent(query)}&limit=${limit}`)
+}
+
+// Video Review Request API
+export const videoReviewApi = {
+  // Create a video review request (student)
+  createRequest: (data) =>
+    api.post('/videoreviews', data),
+
+  // Get my video review requests (student)
+  getMyRequests: () =>
+    api.get('/videoreviews/my-requests'),
+
+  // Cancel a request (student)
+  cancelRequest: (requestId) =>
+    api.delete(`/videoreviews/${requestId}`),
+
+  // Get open requests (coach) - includes targeted and open requests
+  getOpenRequests: () =>
+    api.get('/videoreviews/open'),
+
+  // Get coach's assigned requests
+  getCoachRequests: () =>
+    api.get('/videoreviews/coach'),
+
+  // Accept a request (coach)
+  acceptRequest: (requestId) =>
+    api.post(`/videoreviews/${requestId}/accept`),
+
+  // Complete a review (coach)
+  completeReview: (requestId, data) =>
+    api.post(`/videoreviews/${requestId}/complete`, data),
+
+  // Get a specific request
+  getRequest: (requestId) =>
+    api.get(`/videoreviews/${requestId}`)
+}
+
+// Coach Search API (uses users endpoint)
+export const coachApi = {
+  // Get all coaches with their profiles
+  getCoaches: () =>
+    api.get('/users').then(users => users.filter(u => u.role === 'Coach')),
+
+  // Search coaches (filter on client-side for now)
+  searchCoaches: (query) =>
+    api.get('/users').then(users =>
+      users.filter(u =>
+        u.role === 'Coach' &&
+        (u.firstName?.toLowerCase().includes(query.toLowerCase()) ||
+         u.lastName?.toLowerCase().includes(query.toLowerCase()) ||
+         u.bio?.toLowerCase().includes(query.toLowerCase()))
+      )
+    )
 }
 
 export default api

@@ -49,6 +49,7 @@ builder.Services.AddScoped<IStripeService, StripeService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IRatingService, RatingService>();
 builder.Services.AddScoped<ITagService, TagService>();
+builder.Services.AddScoped<IVideoReviewService, VideoReviewService>();
 
 // CORS
 builder.Services.AddCors(options =>

@@ -1,179 +1,912 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Users, DollarSign, Video, Calendar } from 'lucide-react'
+import {
+  Search, Filter, Star, Calendar, Video, BookOpen, Users,
+  Clock, DollarSign, Upload, X, ChevronDown, Tag, Loader2,
+  ShoppingBag, MessageSquare, CheckCircle, AlertCircle
+} from 'lucide-react'
+import {
+  courseApi, materialApi, sessionApi, ratingApi, tagApi,
+  videoReviewApi, coachApi, assetApi, getAssetUrl
+} from '../services/api'
+import StarRating from '../components/StarRating'
+import TagSelector, { TagDisplay } from '../components/TagSelector'
 
 const StudentDashboard = () => {
-  const [materials, setMaterials] = useState([])
-  const [sessions, setSessions] = useState([])
-  const [stats, setStats] = useState({
-    totalMaterials: 0,
-    totalEarnings: 0,
-    upcomingSessions: 0
-  })
   const { user } = useAuth()
+  const [activeTab, setActiveTab] = useState('browse')
+  const [loading, setLoading] = useState(true)
+
+  // Browse tab state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [browseType, setBrowseType] = useState('courses') // courses, materials, coaches
+  const [courses, setCourses] = useState([])
+  const [materials, setMaterials] = useState([])
+  const [coaches, setCoaches] = useState([])
+  const [ratingSummaries, setRatingSummaries] = useState({})
+  const [minRating, setMinRating] = useState(0)
+  const [tagFilter, setTagFilter] = useState('')
+
+  // Sessions tab state
+  const [sessions, setSessions] = useState([])
+
+  // Video reviews tab state
+  const [videoRequests, setVideoRequests] = useState([])
+  const [showVideoUploadModal, setShowVideoUploadModal] = useState(false)
+
+  // Session request modal state
+  const [showSessionModal, setShowSessionModal] = useState(false)
+  const [selectedCoach, setSelectedCoach] = useState(null)
 
   useEffect(() => {
-    loadDashboardData()
-  }, [])
+    loadData()
+  }, [activeTab, browseType])
 
-  const loadDashboardData = async () => {
+  const loadData = async () => {
+    setLoading(true)
     try {
-      // Mock data for now
-      setMaterials([
-        {
-          id: '1',
-          title: 'Advanced Pickleball Strategies',
-          description: 'Learn advanced game strategies',
-          price: 49.99,
-          contentType: 'Video',
-          createdAt: new Date().toISOString()
-        }
-      ])
-      
-      setSessions([
-        {
-          id: '1',
-          student: { firstName: 'Jane', lastName: 'Doe' },
-          scheduledAt: new Date(Date.now() + 86400000).toISOString(),
-          sessionType: 'Online',
-          price: 75,
-          status: 'Scheduled'
-        }
-      ])
-
-      setStats({
-        totalMaterials: 1,
-        totalEarnings: 49.99,
-        upcomingSessions: 1
-      })
+      if (activeTab === 'browse') {
+        await loadBrowseData()
+      } else if (activeTab === 'sessions') {
+        await loadSessions()
+      } else if (activeTab === 'reviews') {
+        await loadVideoReviews()
+      }
     } catch (error) {
-      console.error('Failed to load dashboard data:', error)
+      console.error('Failed to load data:', error)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  const loadBrowseData = async () => {
+    if (browseType === 'courses') {
+      const data = await courseApi.getCourses()
+      setCourses(data || [])
+      if (data?.length > 0) {
+        const summaries = await ratingApi.getSummaries('Course', data.map(c => c.id))
+        setRatingSummaries(summaries || {})
+      }
+    } else if (browseType === 'materials') {
+      const data = await materialApi.getMaterials()
+      setMaterials(data || [])
+      if (data?.length > 0) {
+        const summaries = await ratingApi.getSummaries('Material', data.map(m => m.id))
+        setRatingSummaries(summaries || {})
+      }
+    } else if (browseType === 'coaches') {
+      const data = await coachApi.getCoaches()
+      setCoaches(data || [])
+      if (data?.length > 0) {
+        const summaries = await ratingApi.getSummaries('Coach', data.map(c => c.id))
+        setRatingSummaries(summaries || {})
+      }
+    }
+  }
+
+  const loadSessions = async () => {
+    const data = await sessionApi.getStudentSessions()
+    setSessions(data || [])
+  }
+
+  const loadVideoReviews = async () => {
+    const data = await videoReviewApi.getMyRequests()
+    setVideoRequests(data || [])
+  }
+
+  // Filter items based on search and rating
+  const filterItems = (items, nameField = 'title') => {
+    return items.filter(item => {
+      const matchesSearch = !searchQuery ||
+        item[nameField]?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchQuery.toLowerCase())
+
+      const rating = ratingSummaries[item.id]?.averageRating || 0
+      const matchesRating = rating >= minRating
+
+      return matchesSearch && matchesRating
+    })
+  }
+
+  const filteredCourses = filterItems(courses, 'title')
+  const filteredMaterials = filterItems(materials, 'title')
+  const filteredCoaches = filterItems(coaches, 'firstName')
+
+  const handlePurchaseCourse = async (courseId) => {
+    try {
+      await courseApi.purchaseCourse(courseId)
+      alert('Course purchased successfully!')
+      loadBrowseData()
+    } catch (error) {
+      alert('Failed to purchase course: ' + (error.message || 'Unknown error'))
+    }
+  }
+
+  const handlePurchaseMaterial = async (materialId) => {
+    try {
+      await materialApi.purchaseMaterial(materialId)
+      alert('Material purchased successfully!')
+      loadBrowseData()
+    } catch (error) {
+      alert('Failed to purchase material: ' + (error.message || 'Unknown error'))
+    }
+  }
+
+  const handleRequestSession = (coach) => {
+    setSelectedCoach(coach)
+    setShowSessionModal(true)
   }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Student  Dashboard</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Student Dashboard</h1>
           <p className="mt-2 text-gray-600">Welcome back, {user?.firstName}!</p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Video className="w-6 h-6 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Materials</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalMaterials}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <DollarSign className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Earnings</p>
-                <p className="text-2xl font-bold text-gray-900">${stats.totalEarnings}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Users className="w-6 h-6 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Upcoming Sessions</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.upcomingSessions}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Materials */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-medium text-gray-900">Recent Materials</h2>
-                <Link
-                  to="/coach/materials/create"
-                  className="flex items-center text-primary-600 hover:text-primary-700"
+        {/* Tabs */}
+        <div className="bg-white rounded-lg shadow mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="flex -mb-px">
+              {[
+                { id: 'browse', label: 'Browse', icon: Search },
+                { id: 'sessions', label: 'My Sessions', icon: Calendar },
+                { id: 'reviews', label: 'Video Reviews', icon: Video }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-primary-500 text-primary-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
                 >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Create New
-                </Link>
-              </div>
-            </div>
-            <div className="divide-y divide-gray-200">
-              {materials.map((material) => (
-                <div key={material.id} className="px-6 py-4">
-                  <h3 className="text-sm font-medium text-gray-900">{material.title}</h3>
-                  <p className="text-sm text-gray-500 mt-1">{material.description}</p>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-sm text-gray-600">${material.price}</span>
-                    <span className="text-xs text-gray-500 capitalize">{material.contentType}</span>
-                  </div>
-                </div>
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
               ))}
-              {materials.length === 0 && (
-                <div className="px-6 py-8 text-center">
-                  <Video className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No materials yet</p>
-                  <Link
-                    to="/coach/materials/create"
-                    className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-                  >
-                    Create your first material
-                  </Link>
-                </div>
-              )}
-            </div>
+            </nav>
           </div>
 
-          {/* Upcoming Sessions */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Upcoming Sessions</h2>
-            </div>
-            <div className="divide-y divide-gray-200">
-              {sessions.map((session) => (
-                <div key={session.id} className="px-6 py-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900">
-                        Session with {session.student.firstName} {session.student.lastName}
-                      </h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {new Date(session.scheduledAt).toLocaleDateString()} at{' '}
-                        {new Date(session.scheduledAt).toLocaleTimeString()}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">${session.price}</p>
-                      <p className="text-xs text-gray-500 capitalize">{session.sessionType}</p>
-                    </div>
-                  </div>
+          <div className="p-6">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
+              </div>
+            ) : (
+              <>
+                {/* Browse Tab */}
+                {activeTab === 'browse' && (
+                  <BrowseTab
+                    browseType={browseType}
+                    setBrowseType={setBrowseType}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    minRating={minRating}
+                    setMinRating={setMinRating}
+                    courses={filteredCourses}
+                    materials={filteredMaterials}
+                    coaches={filteredCoaches}
+                    ratingSummaries={ratingSummaries}
+                    onPurchaseCourse={handlePurchaseCourse}
+                    onPurchaseMaterial={handlePurchaseMaterial}
+                    onRequestSession={handleRequestSession}
+                  />
+                )}
+
+                {/* Sessions Tab */}
+                {activeTab === 'sessions' && (
+                  <SessionsTab sessions={sessions} onRefresh={loadSessions} />
+                )}
+
+                {/* Video Reviews Tab */}
+                {activeTab === 'reviews' && (
+                  <VideoReviewsTab
+                    requests={videoRequests}
+                    coaches={coaches}
+                    onRefresh={loadVideoReviews}
+                    showUploadModal={showVideoUploadModal}
+                    setShowUploadModal={setShowVideoUploadModal}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Session Request Modal */}
+      {showSessionModal && selectedCoach && (
+        <SessionRequestModal
+          coach={selectedCoach}
+          onClose={() => {
+            setShowSessionModal(false)
+            setSelectedCoach(null)
+          }}
+          onSuccess={() => {
+            setShowSessionModal(false)
+            setSelectedCoach(null)
+            setActiveTab('sessions')
+            loadSessions()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// Browse Tab Component
+const BrowseTab = ({
+  browseType, setBrowseType, searchQuery, setSearchQuery,
+  minRating, setMinRating, courses, materials, coaches,
+  ratingSummaries, onPurchaseCourse, onPurchaseMaterial, onRequestSession
+}) => {
+  return (
+    <div className="space-y-6">
+      {/* Type Selection and Search */}
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex gap-2">
+          {['courses', 'materials', 'coaches'].map(type => (
+            <button
+              key={type}
+              onClick={() => setBrowseType(type)}
+              className={`px-4 py-2 rounded-lg font-medium capitalize transition-colors ${
+                browseType === type
+                  ? 'bg-primary-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={`Search ${browseType}...`}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Filter className="w-5 h-5 text-gray-400" />
+          <select
+            value={minRating}
+            onChange={(e) => setMinRating(Number(e.target.value))}
+            className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500"
+          >
+            <option value={0}>All Ratings</option>
+            <option value={4}>4+ Stars</option>
+            <option value={3}>3+ Stars</option>
+            <option value={2}>2+ Stars</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Results Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {browseType === 'courses' && courses.map(course => (
+          <CourseCard
+            key={course.id}
+            course={course}
+            rating={ratingSummaries[course.id]}
+            onPurchase={() => onPurchaseCourse(course.id)}
+          />
+        ))}
+
+        {browseType === 'materials' && materials.map(material => (
+          <MaterialCard
+            key={material.id}
+            material={material}
+            rating={ratingSummaries[material.id]}
+            onPurchase={() => onPurchaseMaterial(material.id)}
+          />
+        ))}
+
+        {browseType === 'coaches' && coaches.map(coach => (
+          <CoachCard
+            key={coach.id}
+            coach={coach}
+            rating={ratingSummaries[coach.id]}
+            onRequestSession={() => onRequestSession(coach)}
+          />
+        ))}
+
+        {((browseType === 'courses' && courses.length === 0) ||
+          (browseType === 'materials' && materials.length === 0) ||
+          (browseType === 'coaches' && coaches.length === 0)) && (
+          <div className="col-span-full text-center py-12 text-gray-500">
+            No {browseType} found matching your criteria
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Course Card
+const CourseCard = ({ course, rating, onPurchase }) => (
+  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+    {course.thumbnailUrl && (
+      <img
+        src={getAssetUrl(course.thumbnailUrl)}
+        alt={course.title}
+        className="w-full h-40 object-cover"
+      />
+    )}
+    <div className="p-4">
+      <h3 className="font-semibold text-gray-900 mb-2">{course.title}</h3>
+      <p className="text-sm text-gray-600 line-clamp-2 mb-3">{course.description}</p>
+
+      <div className="flex items-center gap-2 mb-3">
+        <StarRating rating={rating?.averageRating || 0} size={14} />
+        <span className="text-sm text-gray-500">
+          ({rating?.totalRatings || 0} reviews)
+        </span>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <span className="text-lg font-bold text-primary-600">
+          ${course.price?.toFixed(2)}
+        </span>
+        <button
+          onClick={onPurchase}
+          className="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors"
+        >
+          Purchase
+        </button>
+      </div>
+    </div>
+  </div>
+)
+
+// Material Card
+const MaterialCard = ({ material, rating, onPurchase }) => (
+  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+    <div className="p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Video className="w-5 h-5 text-gray-400" />
+        <span className="text-xs text-gray-500 uppercase">{material.contentType}</span>
+      </div>
+      <h3 className="font-semibold text-gray-900 mb-2">{material.title}</h3>
+      <p className="text-sm text-gray-600 line-clamp-2 mb-3">{material.description}</p>
+
+      <div className="flex items-center gap-2 mb-3">
+        <StarRating rating={rating?.averageRating || 0} size={14} />
+        <span className="text-sm text-gray-500">
+          ({rating?.totalRatings || 0} reviews)
+        </span>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <span className="text-lg font-bold text-primary-600">
+          ${material.price?.toFixed(2)}
+        </span>
+        <button
+          onClick={onPurchase}
+          className="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors"
+        >
+          Purchase
+        </button>
+      </div>
+    </div>
+  </div>
+)
+
+// Coach Card
+const CoachCard = ({ coach, rating, onRequestSession }) => (
+  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+    <div className="p-4">
+      <div className="flex items-center gap-4 mb-4">
+        {coach.profileImageUrl ? (
+          <img
+            src={getAssetUrl(coach.profileImageUrl)}
+            alt={`${coach.firstName} ${coach.lastName}`}
+            className="w-16 h-16 rounded-full object-cover"
+          />
+        ) : (
+          <div className="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center">
+            <Users className="w-8 h-8 text-primary-600" />
+          </div>
+        )}
+        <div>
+          <h3 className="font-semibold text-gray-900">
+            {coach.firstName} {coach.lastName}
+          </h3>
+          {coach.coachProfile?.certificationLevel && (
+            <p className="text-sm text-gray-500">{coach.coachProfile.certificationLevel}</p>
+          )}
+        </div>
+      </div>
+
+      {coach.bio && (
+        <p className="text-sm text-gray-600 line-clamp-2 mb-3">{coach.bio}</p>
+      )}
+
+      <div className="flex items-center gap-2 mb-3">
+        <StarRating rating={rating?.averageRating || 0} size={14} />
+        <span className="text-sm text-gray-500">
+          ({rating?.totalRatings || 0} reviews)
+        </span>
+      </div>
+
+      <div className="flex items-center justify-between">
+        {coach.coachProfile?.hourlyRate ? (
+          <span className="text-lg font-bold text-primary-600">
+            ${coach.coachProfile.hourlyRate}/hr
+          </span>
+        ) : (
+          <span className="text-sm text-gray-500">Rate not set</span>
+        )}
+        <button
+          onClick={onRequestSession}
+          className="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors"
+        >
+          Request Session
+        </button>
+      </div>
+    </div>
+  </div>
+)
+
+// Sessions Tab Component
+const SessionsTab = ({ sessions, onRefresh }) => {
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Pending': return 'bg-yellow-100 text-yellow-800'
+      case 'Confirmed': return 'bg-green-100 text-green-800'
+      case 'Completed': return 'bg-blue-100 text-blue-800'
+      case 'Cancelled': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-medium text-gray-900">Your Sessions</h3>
+      </div>
+
+      {sessions.length === 0 ? (
+        <div className="text-center py-12">
+          <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500">No sessions yet</p>
+          <p className="text-sm text-gray-400 mt-1">
+            Browse coaches and request a session to get started
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {sessions.map(session => (
+            <div key={session.id} className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="font-medium text-gray-900">
+                    Session with {session.coach?.firstName} {session.coach?.lastName}
+                  </h4>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {new Date(session.scheduledAt).toLocaleDateString()} at{' '}
+                    {new Date(session.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {session.durationMinutes} minutes - {session.sessionType}
+                  </p>
+                  {session.notes && (
+                    <p className="text-sm text-gray-500 mt-2">Notes: {session.notes}</p>
+                  )}
                 </div>
-              ))}
-              {sessions.length === 0 && (
-                <div className="px-6 py-8 text-center">
-                  <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No upcoming sessions</p>
+                <div className="text-right">
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
+                    {session.status}
+                  </span>
+                  <p className="text-lg font-bold text-gray-900 mt-2">
+                    ${session.price?.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+              {session.meetingLink && session.status === 'Confirmed' && (
+                <a
+                  href={session.meetingLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block mt-3 px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600"
+                >
+                  Join Meeting
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Video Reviews Tab Component
+const VideoReviewsTab = ({ requests, coaches, onRefresh, showUploadModal, setShowUploadModal }) => {
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'Open': return <Clock className="w-4 h-4 text-yellow-500" />
+      case 'Accepted': return <AlertCircle className="w-4 h-4 text-blue-500" />
+      case 'Completed': return <CheckCircle className="w-4 h-4 text-green-500" />
+      case 'Cancelled': return <X className="w-4 h-4 text-red-500" />
+      default: return null
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-medium text-gray-900">Video Review Requests</h3>
+        <button
+          onClick={() => setShowUploadModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+        >
+          <Upload className="w-4 h-4" />
+          Request Review
+        </button>
+      </div>
+
+      {requests.length === 0 ? (
+        <div className="text-center py-12">
+          <Video className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500">No video review requests yet</p>
+          <p className="text-sm text-gray-400 mt-1">
+            Upload a video to get feedback from coaches
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {requests.map(request => (
+            <div key={request.id} className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    {getStatusIcon(request.status)}
+                    <h4 className="font-medium text-gray-900">{request.title}</h4>
+                  </div>
+                  {request.description && (
+                    <p className="text-sm text-gray-600 mt-1">{request.description}</p>
+                  )}
+                  <p className="text-sm text-gray-500 mt-2">
+                    {request.coachName ? `For: ${request.coachName}` : 'Open to all coaches'}
+                  </p>
+                  {request.acceptedByCoachName && (
+                    <p className="text-sm text-green-600 mt-1">
+                      Accepted by: {request.acceptedByCoachName}
+                    </p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-primary-600">
+                    ${request.offeredPrice?.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {new Date(request.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              {request.status === 'Completed' && request.reviewNotes && (
+                <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                  <p className="text-sm font-medium text-green-800">Coach Feedback:</p>
+                  <p className="text-sm text-green-700 mt-1">{request.reviewNotes}</p>
                 </div>
               )}
             </div>
-          </div>
+          ))}
         </div>
+      )}
+
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <VideoUploadModal
+          coaches={coaches}
+          onClose={() => setShowUploadModal(false)}
+          onSuccess={() => {
+            setShowUploadModal(false)
+            onRefresh()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// Session Request Modal
+const SessionRequestModal = ({ coach, onClose, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    sessionType: 'Online',
+    requestedAt: '',
+    durationMinutes: 60,
+    notes: ''
+  })
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      await sessionApi.requestSession({
+        coachId: coach.id,
+        ...formData,
+        requestedAt: new Date(formData.requestedAt).toISOString()
+      })
+      onSuccess()
+    } catch (error) {
+      alert('Failed to request session: ' + (error.message || 'Unknown error'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="text-lg font-semibold">Request Session with {coach.firstName}</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Session Type</label>
+            <select
+              value={formData.sessionType}
+              onChange={(e) => setFormData({ ...formData, sessionType: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            >
+              <option value="Online">Online</option>
+              <option value="InPerson">In Person</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Date & Time</label>
+            <input
+              type="datetime-local"
+              value={formData.requestedAt}
+              onChange={(e) => setFormData({ ...formData, requestedAt: e.target.value })}
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
+            <select
+              value={formData.durationMinutes}
+              onChange={(e) => setFormData({ ...formData, durationMinutes: Number(e.target.value) })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            >
+              <option value={30}>30 minutes</option>
+              <option value={60}>60 minutes</option>
+              <option value={90}>90 minutes</option>
+              <option value={120}>120 minutes</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              rows={3}
+              placeholder="Any specific topics you want to work on..."
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            />
+          </div>
+
+          {coach.coachProfile?.hourlyRate && (
+            <p className="text-sm text-gray-600">
+              Estimated cost: <strong>${(coach.coachProfile.hourlyRate * formData.durationMinutes / 60).toFixed(2)}</strong>
+            </p>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:bg-gray-300 flex items-center justify-center gap-2"
+            >
+              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              Request Session
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// Video Upload Modal
+const VideoUploadModal = ({ coaches, onClose, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    coachId: '',  // Empty = open to all
+    title: '',
+    description: '',
+    videoUrl: '',
+    offeredPrice: 25
+  })
+  const [uploading, setUploading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const response = await assetApi.upload(file, 'videos')
+      if (response.success && response.data?.url) {
+        setFormData({ ...formData, videoUrl: response.data.url })
+      }
+    } catch (error) {
+      alert('Failed to upload video: ' + (error.message || 'Unknown error'))
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!formData.videoUrl) {
+      alert('Please upload a video first')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      await videoReviewApi.createRequest({
+        ...formData,
+        coachId: formData.coachId ? Number(formData.coachId) : null
+      })
+      onSuccess()
+    } catch (error) {
+      alert('Failed to create request: ' + (error.message || 'Unknown error'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="text-lg font-semibold">Request Video Review</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              required
+              placeholder="e.g., My serve technique"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={3}
+              placeholder="What would you like feedback on?"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Video *</label>
+            {formData.videoUrl ? (
+              <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-500" />
+                <span className="text-sm text-green-700">Video uploaded</span>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, videoUrl: '' })}
+                  className="ml-auto text-red-500 hover:text-red-700"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="video-upload"
+                  disabled={uploading}
+                />
+                <label htmlFor="video-upload" className="cursor-pointer">
+                  {uploading ? (
+                    <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto" />
+                  ) : (
+                    <Upload className="w-8 h-8 text-gray-400 mx-auto" />
+                  )}
+                  <p className="mt-2 text-sm text-gray-600">
+                    {uploading ? 'Uploading...' : 'Click to upload video'}
+                  </p>
+                </label>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Send To</label>
+            <select
+              value={formData.coachId}
+              onChange={(e) => setFormData({ ...formData, coachId: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            >
+              <option value="">Open to all coaches</option>
+              {coaches.map(coach => (
+                <option key={coach.id} value={coach.id}>
+                  {coach.firstName} {coach.lastName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Offered Price ($)</label>
+            <input
+              type="number"
+              value={formData.offeredPrice}
+              onChange={(e) => setFormData({ ...formData, offeredPrice: Number(e.target.value) })}
+              min={5}
+              step={5}
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Higher offers are more likely to get accepted quickly
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting || !formData.videoUrl}
+              className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:bg-gray-300 flex items-center justify-center gap-2"
+            >
+              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              Submit Request
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )
