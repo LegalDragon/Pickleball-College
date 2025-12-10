@@ -446,22 +446,22 @@ export const videoReviewApi = {
     api.get(`/videoreviews/${requestId}`)
 }
 
-// Coach Search API (uses users endpoint)
+// Coach Search API (uses dedicated coaches endpoint)
 export const coachApi = {
   // Get all coaches with their profiles
   getCoaches: () =>
-    api.get('/users').then(users => users.filter(u => u.role === 'Coach')),
+    api.get('/users/coaches').then(response => response.data || response),
 
   // Search coaches (filter on client-side for now)
   searchCoaches: (query) =>
-    api.get('/users').then(users =>
-      users.filter(u =>
-        u.role === 'Coach' &&
-        (u.firstName?.toLowerCase().includes(query.toLowerCase()) ||
-         u.lastName?.toLowerCase().includes(query.toLowerCase()) ||
-         u.bio?.toLowerCase().includes(query.toLowerCase()))
-      )
-    )
+    api.get('/users/coaches').then(response => {
+      const coaches = response.data || response;
+      return coaches.filter(u =>
+        u.firstName?.toLowerCase().includes(query.toLowerCase()) ||
+        u.lastName?.toLowerCase().includes(query.toLowerCase()) ||
+        u.bio?.toLowerCase().includes(query.toLowerCase())
+      );
+    })
 }
 
 export default api

@@ -339,6 +339,48 @@ public class UsersController : ControllerBase
         }
     }
 
+    // GET: api/Users/coaches (All authenticated users can browse coaches)
+    [HttpGet("coaches")]
+    public async Task<ActionResult<ApiResponse<List<UserProfileDto>>>> GetCoaches()
+    {
+        try
+        {
+            var coaches = await _context.Users
+                .Where(u => u.Role == "Coach" && u.IsActive)
+                .Select(u => new UserProfileDto
+                {
+                    Id = u.Id,
+                    Email = u.Email,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,
+                    Role = u.Role,
+                    Bio = u.Bio,
+                    ProfileImageUrl = u.ProfileImageUrl,
+                    ExperienceLevel = u.ExperienceLevel,
+                    PlayingStyle = u.PlayingStyle,
+                    YearsPlaying = u.YearsPlaying,
+                    CreatedAt = u.CreatedAt,
+                    IsActive = u.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(new ApiResponse<List<UserProfileDto>>
+            {
+                Success = true,
+                Data = coaches
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching coaches");
+            return StatusCode(500, new ApiResponse<List<UserProfileDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching coaches"
+            });
+        }
+    }
+
     // GET: api/Users (Admin only)
     [Authorize(Roles = "Admin")]
     [HttpGet]

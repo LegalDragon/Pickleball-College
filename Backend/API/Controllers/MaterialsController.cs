@@ -8,7 +8,7 @@ namespace Pickleball.College.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-//[Authorize]
+[Authorize]
 public class MaterialsController : ControllerBase
 {
     private readonly IMaterialService _materialService;
