@@ -460,6 +460,30 @@ a:hover {
   padding: 4rem 0;
 }
 
+/* Stats Container - Horizontal on desktop, stacked on mobile */
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+}
+
+@media (max-width: 1024px) {
+  .stats-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat-item {
+  text-align: center;
+  padding: 1.5rem;
+}
+
 .stat-card {
   text-align: center;
   padding: 2rem;
@@ -478,6 +502,14 @@ a:hover {
 .stat-label {
   color: var(--gray-600);
   font-weight: 500;
+}
+
+.stat-item .rating {
+  margin-top: 0.5rem;
+}
+
+.stat-item .stars {
+  color: #fbbf24;
 }
 
 /* Testimonial */
