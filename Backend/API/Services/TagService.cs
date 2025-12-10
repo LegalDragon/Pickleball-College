@@ -1,5 +1,6 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Pickleball.College.Database;
 using Pickleball.College.Models.DTOs;
 using Pickleball.College.Models.Entities;
 
