@@ -22,11 +22,27 @@ public class VideoReviewRequest
     [MaxLength(500)]
     public string VideoUrl { get; set; } = string.Empty;
 
+    // External link for video (YouTube, Vimeo, etc.)
+    [MaxLength(500)]
+    public string? ExternalVideoLink { get; set; }
+
     // Price offered by student
     public decimal OfferedPrice { get; set; }
 
-    // Status: Open, Accepted, Completed, Cancelled
+    // Status: Open, PendingStudentApproval, Accepted, InProgress, Completed, Cancelled
     public string Status { get; set; } = "Open";
+
+    // Coach who made a bid/proposal (for bidding process)
+    public int? ProposedByCoachId { get; set; }
+
+    // Coach's proposed price (for bidding)
+    public decimal? ProposedPrice { get; set; }
+
+    // Coach's note/message with proposal
+    [MaxLength(1000)]
+    public string? ProposalNote { get; set; }
+
+    public DateTime? ProposedAt { get; set; }
 
     // Coach who accepted (for open requests)
     public int? AcceptedByCoachId { get; set; }
@@ -46,5 +62,6 @@ public class VideoReviewRequest
     // Navigation properties
     public User Student { get; set; } = null!;
     public User? TargetCoach { get; set; }
+    public User? ProposedByCoach { get; set; }
     public User? AcceptedByCoach { get; set; }
 }

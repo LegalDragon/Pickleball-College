@@ -53,6 +53,31 @@ public class VideoReviewsController : ControllerBase
     }
 
     /// <summary>
+    /// Update a video review request (student)
+    /// </summary>
+    [HttpPut("{requestId}")]
+    [Authorize]
+    public async Task<ActionResult<VideoReviewRequestDto>> UpdateRequest(int requestId, [FromBody] UpdateVideoReviewRequest request)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        try
+        {
+            var result = await _videoReviewService.UpdateRequestAsync(userId.Value, requestId, request);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Cancel a video review request (student)
     /// </summary>
     [HttpDelete("{requestId}")]
@@ -75,7 +100,82 @@ public class VideoReviewsController : ControllerBase
     }
 
     /// <summary>
-    /// Get open video review requests (coach)
+    /// Coach proposes a price for an open request (bidding)
+    /// </summary>
+    [HttpPost("{requestId}/propose")]
+    [Authorize]
+    public async Task<ActionResult<VideoReviewRequestDto>> ProposeReview(int requestId, [FromBody] CoachProposalRequest proposal)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        try
+        {
+            var result = await _videoReviewService.ProposeAsync(userId.Value, requestId, proposal);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Student accepts a coach's proposal
+    /// </summary>
+    [HttpPost("{requestId}/accept-proposal")]
+    [Authorize]
+    public async Task<ActionResult<VideoReviewRequestDto>> AcceptProposal(int requestId)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        try
+        {
+            var result = await _videoReviewService.AcceptProposalAsync(userId.Value, requestId);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Student declines a coach's proposal
+    /// </summary>
+    [HttpPost("{requestId}/decline-proposal")]
+    [Authorize]
+    public async Task<ActionResult<VideoReviewRequestDto>> DeclineProposal(int requestId)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        try
+        {
+            var result = await _videoReviewService.DeclineProposalAsync(userId.Value, requestId);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get open video review requests (coach - for marketplace)
     /// </summary>
     [HttpGet("open")]
     [Authorize]

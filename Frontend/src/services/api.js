@@ -417,6 +417,10 @@ export const videoReviewApi = {
   createRequest: (data) =>
     api.post('/videoreviews', data),
 
+  // Update a video review request (student)
+  updateRequest: (requestId, data) =>
+    api.put(`/videoreviews/${requestId}`, data),
+
   // Get my video review requests (student)
   getMyRequests: () =>
     api.get('/videoreviews/my-requests'),
@@ -424,6 +428,18 @@ export const videoReviewApi = {
   // Cancel a request (student)
   cancelRequest: (requestId) =>
     api.delete(`/videoreviews/${requestId}`),
+
+  // Coach proposes a price/note (bidding)
+  propose: (requestId, data) =>
+    api.post(`/videoreviews/${requestId}/propose`, data),
+
+  // Student accepts coach's proposal
+  acceptProposal: (requestId) =>
+    api.post(`/videoreviews/${requestId}/accept-proposal`),
+
+  // Student declines coach's proposal
+  declineProposal: (requestId) =>
+    api.post(`/videoreviews/${requestId}/decline-proposal`),
 
   // Get open requests (coach) - includes targeted and open requests
   getOpenRequests: () =>
@@ -433,7 +449,7 @@ export const videoReviewApi = {
   getCoachRequests: () =>
     api.get('/videoreviews/coach'),
 
-  // Accept a request (coach)
+  // Accept a request directly (coach - for simple flow)
   acceptRequest: (requestId) =>
     api.post(`/videoreviews/${requestId}/accept`),
 

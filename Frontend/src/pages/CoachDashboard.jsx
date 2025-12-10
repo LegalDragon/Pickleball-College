@@ -1,20 +1,23 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { materialApi, sessionApi, courseApi, getAssetUrl } from '../services/api'
+import { materialApi, sessionApi, courseApi, videoReviewApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Users, DollarSign, Video, Calendar, RefreshCw, AlertCircle, Eye, Edit2, BookOpen, Clock, Check, X, MapPin, Link as LinkIcon, Loader2 } from 'lucide-react'
+import { Plus, Users, DollarSign, Video, Calendar, RefreshCw, AlertCircle, Eye, Edit2, BookOpen, Clock, Check, X, MapPin, Link as LinkIcon, Loader2, Play, MessageSquare } from 'lucide-react'
 
 const CoachDashboard = () => {
   const [materials, setMaterials] = useState([])
   const [courses, setCourses] = useState([])
   const [sessions, setSessions] = useState([])
   const [pendingSessions, setPendingSessions] = useState([])
+  const [openVideoRequests, setOpenVideoRequests] = useState([])
+  const [myVideoReviews, setMyVideoReviews] = useState([])
   const [stats, setStats] = useState({
     totalMaterials: 0,
     totalCourses: 0,
     totalEarnings: 0,
     upcomingSessions: 0,
-    pendingRequests: 0
+    pendingRequests: 0,
+    openVideoRequests: 0
   })
   const [loadingData, setLoadingData] = useState(true)
   const [error, setError] = useState(null)
@@ -23,6 +26,10 @@ const CoachDashboard = () => {
   // Session management state
   const [selectedSession, setSelectedSession] = useState(null)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+
+  // Video review proposal state
+  const [selectedVideoRequest, setSelectedVideoRequest] = useState(null)
+  const [showProposalModal, setShowProposalModal] = useState(false)
 
   const { user, loading: authLoading } = useAuth() // Get auth loading state
   const navigate = useNavigate()
@@ -69,22 +76,28 @@ const CoachDashboard = () => {
 
       console.log('Loading dashboard data for coach ID:', user.id)
 
-      const [materialsData, coursesData, sessionsData, pendingData] = await Promise.all([
+      const [materialsData, coursesData, sessionsData, pendingData, openVideoData, myVideoData] = await Promise.all([
         materialApi.getCoachMaterials(user.id),
         courseApi.getCoachCourses(user.id),
         sessionApi.getCoachSessions(user.id),
-        sessionApi.getPendingSessions().catch(() => [])
+        sessionApi.getPendingSessions().catch(() => []),
+        videoReviewApi.getOpenRequests().catch(() => []),
+        videoReviewApi.getCoachRequests().catch(() => [])
       ])
 
       console.log('Materials data:', materialsData)
       console.log('Courses data:', coursesData)
       console.log('Sessions data:', sessionsData)
       console.log('Pending sessions:', pendingData)
+      console.log('Open video requests:', openVideoData)
+      console.log('My video reviews:', myVideoData)
 
       setMaterials(Array.isArray(materialsData) ? materialsData.slice(0, 5) : [])
       setCourses(Array.isArray(coursesData) ? coursesData.slice(0, 5) : [])
       setSessions(Array.isArray(sessionsData) ? sessionsData.filter(s => s.status !== 'Pending').slice(0, 5) : [])
       setPendingSessions(Array.isArray(pendingData) ? pendingData : [])
+      setOpenVideoRequests(Array.isArray(openVideoData) ? openVideoData : [])
+      setMyVideoReviews(Array.isArray(myVideoData) ? myVideoData.filter(r => r.status === 'Accepted') : [])
 
       // Calculate stats
       const totalEarnings = Array.isArray(materialsData) ? materialsData.reduce((sum, material) => {
@@ -107,7 +120,8 @@ const CoachDashboard = () => {
         totalCourses: Array.isArray(coursesData) ? coursesData.length : 0,
         totalEarnings,
         upcomingSessions,
-        pendingRequests: Array.isArray(pendingData) ? pendingData.length : 0
+        pendingRequests: Array.isArray(pendingData) ? pendingData.length : 0,
+        openVideoRequests: Array.isArray(openVideoData) ? openVideoData.length : 0
       })
 
     } catch (error) {
@@ -211,7 +225,7 @@ const CoachDashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="p-2 bg-blue-100 rounded-lg">
@@ -268,6 +282,18 @@ const CoachDashboard = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Pending Requests</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.pendingRequests}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Play className="w-6 h-6 text-orange-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Video Reviews</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.openVideoRequests}</p>
               </div>
             </div>
           </div>
@@ -329,6 +355,68 @@ const CoachDashboard = () => {
                         Reject
                       </button>
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Open Video Review Requests - Marketplace */}
+        {openVideoRequests.length > 0 && (
+          <div className="mb-8 bg-orange-50 border border-orange-200 rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-orange-200">
+              <h2 className="text-lg font-medium text-orange-800 flex items-center gap-2">
+                <Play className="w-5 h-5" />
+                Video Review Marketplace ({openVideoRequests.length} open requests)
+              </h2>
+              <p className="text-sm text-orange-600 mt-1">
+                Students are looking for coaches to review their videos. Make a proposal to get started!
+              </p>
+            </div>
+            <div className="divide-y divide-orange-200">
+              {openVideoRequests.slice(0, 5).map((request) => (
+                <div key={request.id} className="px-6 py-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-sm font-medium text-gray-900">{request.title}</h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        by {request.studentName}
+                      </p>
+                      {request.description && (
+                        <p className="text-sm text-gray-500 mt-2 line-clamp-2">
+                          {request.description}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-4 mt-2">
+                        <span className="text-lg font-bold text-orange-600">
+                          ${request.offeredPrice?.toFixed(2)}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(request.createdAt).toLocaleDateString()}
+                        </span>
+                        {(request.videoUrl || request.externalVideoLink) && (
+                          <a
+                            href={request.externalVideoLink || request.videoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                          >
+                            <Video className="w-3 h-3" /> Watch Video
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedVideoRequest(request)
+                        setShowProposalModal(true)
+                      }}
+                      className="ml-4 flex items-center gap-1 px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition-colors"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      Make Proposal
+                    </button>
                   </div>
                 </div>
               ))}
@@ -579,6 +667,22 @@ const CoachDashboard = () => {
           }}
         />
       )}
+
+      {/* Video Review Proposal Modal */}
+      {showProposalModal && selectedVideoRequest && (
+        <VideoProposalModal
+          request={selectedVideoRequest}
+          onClose={() => {
+            setShowProposalModal(false)
+            setSelectedVideoRequest(null)
+          }}
+          onSuccess={() => {
+            setShowProposalModal(false)
+            setSelectedVideoRequest(null)
+            loadDashboardData()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -703,6 +807,126 @@ const ConfirmSessionModal = ({ session, onClose, onSuccess }) => {
             >
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
               Confirm Session
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// Video Review Proposal Modal Component
+const VideoProposalModal = ({ request, onClose, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    proposedPrice: request.offeredPrice || 25,
+    note: ''
+  })
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      await videoReviewApi.propose(request.id, {
+        proposedPrice: formData.proposedPrice,
+        note: formData.note || null
+      })
+      onSuccess()
+    } catch (error) {
+      alert('Failed to submit proposal: ' + (error.message || 'Unknown error'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="text-lg font-semibold">Make a Proposal</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-4 bg-gray-50 border-b">
+          <h4 className="font-medium text-gray-900">{request.title}</h4>
+          <p className="text-sm text-gray-600 mt-1">
+            <strong>Student:</strong> {request.studentName}
+          </p>
+          {request.description && (
+            <p className="text-sm text-gray-600 mt-1">{request.description}</p>
+          )}
+          <p className="text-sm text-gray-600 mt-2">
+            <strong>Student's offer:</strong>{' '}
+            <span className="text-orange-600 font-bold">${request.offeredPrice?.toFixed(2)}</span>
+          </p>
+          {(request.videoUrl || request.externalVideoLink) && (
+            <a
+              href={request.externalVideoLink || request.videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 mt-2"
+            >
+              <Video className="w-4 h-4" /> Watch Student's Video
+            </a>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Your Proposed Price ($)
+            </label>
+            <input
+              type="number"
+              value={formData.proposedPrice}
+              onChange={(e) => setFormData({ ...formData, proposedPrice: Number(e.target.value) })}
+              min={5}
+              step={5}
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              You can match the student's offer or propose a different price
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Message to Student (optional)
+            </label>
+            <textarea
+              value={formData.note}
+              onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+              rows={3}
+              placeholder="Introduce yourself, explain your experience, or ask questions about what they need..."
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            />
+          </div>
+
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+            <p className="text-sm text-orange-800">
+              <strong>How it works:</strong> Your proposal will be sent to the student.
+              If they accept, you'll be assigned to review their video.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 flex items-center justify-center gap-2"
+            >
+              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              Submit Proposal
             </button>
           </div>
         </form>

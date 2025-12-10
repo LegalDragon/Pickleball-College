@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import {
   Search, Filter, Star, Calendar, Video, BookOpen, Users,
   Clock, DollarSign, Upload, X, ChevronDown, Tag, Loader2,
-  ShoppingBag, MessageSquare, CheckCircle, AlertCircle
+  ShoppingBag, MessageSquare, CheckCircle, AlertCircle, ExternalLink
 } from 'lucide-react'
 import {
   courseApi, materialApi, sessionApi, ratingApi, tagApi,
@@ -545,15 +545,58 @@ const SessionsTab = ({ sessions, onRefresh }) => {
 
 // Video Reviews Tab Component
 const VideoReviewsTab = ({ requests, coaches, onRefresh, showUploadModal, setShowUploadModal }) => {
+  const [editRequest, setEditRequest] = useState(null)
+  const [actionLoading, setActionLoading] = useState(null)
+
   const getStatusIcon = (status) => {
     switch (status) {
       case 'Open': return <Clock className="w-4 h-4 text-yellow-500" />
-      case 'Accepted': return <AlertCircle className="w-4 h-4 text-blue-500" />
+      case 'PendingStudentApproval': return <AlertCircle className="w-4 h-4 text-orange-500" />
+      case 'Accepted': return <CheckCircle className="w-4 h-4 text-blue-500" />
       case 'Completed': return <CheckCircle className="w-4 h-4 text-green-500" />
       case 'Cancelled': return <X className="w-4 h-4 text-red-500" />
       default: return null
     }
   }
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'Open': return 'Open'
+      case 'PendingStudentApproval': return 'Proposal Received'
+      case 'Accepted': return 'In Progress'
+      case 'Completed': return 'Completed'
+      case 'Cancelled': return 'Cancelled'
+      default: return status
+    }
+  }
+
+  const handleAcceptProposal = async (requestId) => {
+    if (!confirm('Accept this coach\'s proposal?')) return
+    setActionLoading(requestId)
+    try {
+      await videoReviewApi.acceptProposal(requestId)
+      onRefresh()
+    } catch (error) {
+      alert('Failed to accept: ' + (error.message || 'Unknown error'))
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleDeclineProposal = async (requestId) => {
+    if (!confirm('Decline this proposal? The request will be reopened to other coaches.')) return
+    setActionLoading(requestId)
+    try {
+      await videoReviewApi.declineProposal(requestId)
+      onRefresh()
+    } catch (error) {
+      alert('Failed to decline: ' + (error.message || 'Unknown error'))
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const canEdit = (status) => status === 'Open' || status === 'PendingStudentApproval'
 
   return (
     <div className="space-y-4">
@@ -581,10 +624,13 @@ const VideoReviewsTab = ({ requests, coaches, onRefresh, showUploadModal, setSho
           {requests.map(request => (
             <div key={request.id} className="bg-gray-50 rounded-lg p-4">
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex-1">
                   <div className="flex items-center gap-2">
                     {getStatusIcon(request.status)}
                     <h4 className="font-medium text-gray-900">{request.title}</h4>
+                    <span className="text-xs px-2 py-0.5 bg-gray-200 rounded-full text-gray-600">
+                      {getStatusLabel(request.status)}
+                    </span>
                   </div>
                   {request.description && (
                     <p className="text-sm text-gray-600 mt-1">{request.description}</p>
@@ -594,7 +640,7 @@ const VideoReviewsTab = ({ requests, coaches, onRefresh, showUploadModal, setSho
                   </p>
                   {request.acceptedByCoachName && (
                     <p className="text-sm text-green-600 mt-1">
-                      Accepted by: {request.acceptedByCoachName}
+                      Working with: {request.acceptedByCoachName}
                     </p>
                   )}
                 </div>
@@ -605,12 +651,73 @@ const VideoReviewsTab = ({ requests, coaches, onRefresh, showUploadModal, setSho
                   <p className="text-xs text-gray-500 mt-1">
                     {new Date(request.createdAt).toLocaleDateString()}
                   </p>
+                  {canEdit(request.status) && (
+                    <button
+                      onClick={() => setEditRequest(request)}
+                      className="text-xs text-primary-600 hover:text-primary-700 mt-2"
+                    >
+                      Edit Request
+                    </button>
+                  )}
                 </div>
               </div>
+
+              {/* Coach Proposal Section */}
+              {request.status === 'PendingStudentApproval' && request.proposedByCoachName && (
+                <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium text-orange-800">
+                        Proposal from {request.proposedByCoachName}
+                      </p>
+                      <p className="text-lg font-bold text-orange-700 mt-1">
+                        ${request.proposedPrice?.toFixed(2)}
+                      </p>
+                      {request.proposalNote && (
+                        <p className="text-sm text-orange-700 mt-2 italic">
+                          "{request.proposalNote}"
+                        </p>
+                      )}
+                      <p className="text-xs text-orange-600 mt-2">
+                        Proposed {new Date(request.proposedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleDeclineProposal(request.id)}
+                        disabled={actionLoading === request.id}
+                        className="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Decline
+                      </button>
+                      <button
+                        onClick={() => handleAcceptProposal(request.id)}
+                        disabled={actionLoading === request.id}
+                        className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
+                      >
+                        {actionLoading === request.id && <Loader2 className="w-3 h-3 animate-spin" />}
+                        Accept
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Completed Review Feedback */}
               {request.status === 'Completed' && request.reviewNotes && (
                 <div className="mt-4 p-3 bg-green-50 rounded-lg">
                   <p className="text-sm font-medium text-green-800">Coach Feedback:</p>
                   <p className="text-sm text-green-700 mt-1">{request.reviewNotes}</p>
+                  {request.reviewVideoUrl && (
+                    <a
+                      href={request.reviewVideoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-700 mt-2"
+                    >
+                      <Video className="w-4 h-4" /> Watch Review Video
+                    </a>
+                  )}
                 </div>
               )}
             </div>
@@ -618,13 +725,18 @@ const VideoReviewsTab = ({ requests, coaches, onRefresh, showUploadModal, setSho
         </div>
       )}
 
-      {/* Upload Modal */}
-      {showUploadModal && (
+      {/* Upload/Edit Modal */}
+      {(showUploadModal || editRequest) && (
         <VideoUploadModal
           coaches={coaches}
-          onClose={() => setShowUploadModal(false)}
+          editRequest={editRequest}
+          onClose={() => {
+            setShowUploadModal(false)
+            setEditRequest(null)
+          }}
           onSuccess={() => {
             setShowUploadModal(false)
+            setEditRequest(null)
             onRefresh()
           }}
         />
@@ -775,14 +887,17 @@ const SessionRequestModal = ({ coach, onClose, onSuccess }) => {
   )
 }
 
-// Video Upload Modal
-const VideoUploadModal = ({ coaches, onClose, onSuccess }) => {
+// Video Upload Modal - supports create and edit modes
+const VideoUploadModal = ({ coaches, onClose, onSuccess, editRequest = null }) => {
+  const isEdit = !!editRequest
+  const [videoMode, setVideoMode] = useState(editRequest?.externalVideoLink ? 'link' : 'upload')
   const [formData, setFormData] = useState({
-    coachId: '',  // Empty = open to all
-    title: '',
-    description: '',
-    videoUrl: '',
-    offeredPrice: 25
+    coachId: editRequest?.coachId || '',
+    title: editRequest?.title || '',
+    description: editRequest?.description || '',
+    videoUrl: editRequest?.videoUrl || '',
+    externalVideoLink: editRequest?.externalVideoLink || '',
+    offeredPrice: editRequest?.offeredPrice || 25
   })
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -795,7 +910,7 @@ const VideoUploadModal = ({ coaches, onClose, onSuccess }) => {
     try {
       const response = await assetApi.upload(file, 'videos')
       if (response.success && response.data?.url) {
-        setFormData({ ...formData, videoUrl: response.data.url })
+        setFormData({ ...formData, videoUrl: response.data.url, externalVideoLink: '' })
       }
     } catch (error) {
       alert('Failed to upload video: ' + (error.message || 'Unknown error'))
@@ -804,22 +919,36 @@ const VideoUploadModal = ({ coaches, onClose, onSuccess }) => {
     }
   }
 
+  const hasVideo = formData.videoUrl || formData.externalVideoLink
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!formData.videoUrl) {
-      alert('Please upload a video first')
+    if (!hasVideo) {
+      alert('Please provide a video (upload or link)')
       return
     }
 
     setSubmitting(true)
     try {
-      await videoReviewApi.createRequest({
-        ...formData,
-        coachId: formData.coachId ? Number(formData.coachId) : null
-      })
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        videoUrl: formData.videoUrl || null,
+        externalVideoLink: formData.externalVideoLink || null,
+        offeredPrice: formData.offeredPrice
+      }
+
+      if (isEdit) {
+        await videoReviewApi.updateRequest(editRequest.id, payload)
+      } else {
+        await videoReviewApi.createRequest({
+          ...payload,
+          coachId: formData.coachId ? Number(formData.coachId) : null
+        })
+      }
       onSuccess()
     } catch (error) {
-      alert('Failed to create request: ' + (error.message || 'Unknown error'))
+      alert(`Failed to ${isEdit ? 'update' : 'create'} request: ` + (error.message || 'Unknown error'))
     } finally {
       setSubmitting(false)
     }
@@ -829,7 +958,7 @@ const VideoUploadModal = ({ coaches, onClose, onSuccess }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="text-lg font-semibold">Request Video Review</h3>
+          <h3 className="text-lg font-semibold">{isEdit ? 'Edit Video Review Request' : 'Request Video Review'}</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
             <X className="w-5 h-5" />
           </button>
@@ -860,58 +989,102 @@ const VideoUploadModal = ({ coaches, onClose, onSuccess }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Video *</label>
-            {formData.videoUrl ? (
-              <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-500" />
-                <span className="text-sm text-green-700">Video uploaded</span>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, videoUrl: '' })}
-                  className="ml-auto text-red-500 hover:text-red-700"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Video *</label>
+
+            {/* Video mode toggle */}
+            <div className="flex gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => setVideoMode('upload')}
+                className={`flex-1 px-3 py-2 text-sm rounded-lg border ${
+                  videoMode === 'upload'
+                    ? 'bg-primary-100 border-primary-500 text-primary-700'
+                    : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <Upload className="w-4 h-4 inline mr-1" /> Upload
+              </button>
+              <button
+                type="button"
+                onClick={() => setVideoMode('link')}
+                className={`flex-1 px-3 py-2 text-sm rounded-lg border ${
+                  videoMode === 'link'
+                    ? 'bg-primary-100 border-primary-500 text-primary-700'
+                    : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <ExternalLink className="w-4 h-4 inline mr-1" /> YouTube/Link
+              </button>
+            </div>
+
+            {videoMode === 'upload' ? (
+              formData.videoUrl ? (
+                <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span className="text-sm text-green-700">Video uploaded</span>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, videoUrl: '' })}
+                    className="ml-auto text-red-500 hover:text-red-700"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <input
+                    type="file"
+                    accept="video/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="video-upload"
+                    disabled={uploading}
+                  />
+                  <label htmlFor="video-upload" className="cursor-pointer">
+                    {uploading ? (
+                      <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto" />
+                    ) : (
+                      <Upload className="w-8 h-8 text-gray-400 mx-auto" />
+                    )}
+                    <p className="mt-2 text-sm text-gray-600">
+                      {uploading ? 'Uploading...' : 'Click to upload video'}
+                    </p>
+                  </label>
+                </div>
+              )
             ) : (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <div>
                 <input
-                  type="file"
-                  accept="video/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  id="video-upload"
-                  disabled={uploading}
+                  type="url"
+                  value={formData.externalVideoLink}
+                  onChange={(e) => setFormData({ ...formData, externalVideoLink: e.target.value, videoUrl: '' })}
+                  placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
                 />
-                <label htmlFor="video-upload" className="cursor-pointer">
-                  {uploading ? (
-                    <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto" />
-                  ) : (
-                    <Upload className="w-8 h-8 text-gray-400 mx-auto" />
-                  )}
-                  <p className="mt-2 text-sm text-gray-600">
-                    {uploading ? 'Uploading...' : 'Click to upload video'}
-                  </p>
-                </label>
+                <p className="text-xs text-gray-500 mt-1">
+                  Paste a YouTube, Vimeo, or TikTok link
+                </p>
               </div>
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Send To</label>
-            <select
-              value={formData.coachId}
-              onChange={(e) => setFormData({ ...formData, coachId: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            >
-              <option value="">Open to all coaches</option>
-              {coaches.map(coach => (
-                <option key={coach.id} value={coach.id}>
-                  {coach.firstName} {coach.lastName}
-                </option>
-              ))}
-            </select>
-          </div>
+          {!isEdit && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Send To</label>
+              <select
+                value={formData.coachId}
+                onChange={(e) => setFormData({ ...formData, coachId: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              >
+                <option value="">Open to all coaches (marketplace)</option>
+                {coaches.map(coach => (
+                  <option key={coach.id} value={coach.id}>
+                    {coach.firstName} {coach.lastName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Offered Price ($)</label>
@@ -925,7 +1098,7 @@ const VideoUploadModal = ({ coaches, onClose, onSuccess }) => {
               className="w-full border border-gray-300 rounded-lg px-3 py-2"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Higher offers are more likely to get accepted quickly
+              {isEdit ? 'Update your offer price' : 'Higher offers are more likely to get accepted quickly'}
             </p>
           </div>
 
@@ -939,11 +1112,11 @@ const VideoUploadModal = ({ coaches, onClose, onSuccess }) => {
             </button>
             <button
               type="submit"
-              disabled={submitting || !formData.videoUrl}
+              disabled={submitting || !hasVideo}
               className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:bg-gray-300 flex items-center justify-center gap-2"
             >
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-              Submit Request
+              {isEdit ? 'Save Changes' : 'Submit Request'}
             </button>
           </div>
         </form>

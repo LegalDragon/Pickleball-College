@@ -5,13 +5,24 @@ public class VideoReviewRequestDto
     public int Id { get; set; }
     public int StudentId { get; set; }
     public string StudentName { get; set; } = string.Empty;
+    public string? StudentAvatar { get; set; }
     public int? CoachId { get; set; }
     public string? CoachName { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string VideoUrl { get; set; } = string.Empty;
+    public string? ExternalVideoLink { get; set; }
     public decimal OfferedPrice { get; set; }
     public string Status { get; set; } = string.Empty;
+
+    // Bidding/Proposal fields
+    public int? ProposedByCoachId { get; set; }
+    public string? ProposedByCoachName { get; set; }
+    public string? ProposedByCoachAvatar { get; set; }
+    public decimal? ProposedPrice { get; set; }
+    public string? ProposalNote { get; set; }
+    public DateTime? ProposedAt { get; set; }
+
     public int? AcceptedByCoachId { get; set; }
     public string? AcceptedByCoachName { get; set; }
     public string? ReviewVideoUrl { get; set; }
@@ -26,8 +37,24 @@ public class CreateVideoReviewRequest
     public int? CoachId { get; set; }  // Null for open requests
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
-    public string VideoUrl { get; set; } = string.Empty;
+    public string? VideoUrl { get; set; }  // Uploaded video URL
+    public string? ExternalVideoLink { get; set; }  // YouTube/Vimeo/etc link
     public decimal OfferedPrice { get; set; }
+}
+
+public class UpdateVideoReviewRequest
+{
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? VideoUrl { get; set; }
+    public string? ExternalVideoLink { get; set; }
+    public decimal OfferedPrice { get; set; }
+}
+
+public class CoachProposalRequest
+{
+    public decimal ProposedPrice { get; set; }
+    public string? Note { get; set; }
 }
 
 public class AcceptVideoReviewRequest
