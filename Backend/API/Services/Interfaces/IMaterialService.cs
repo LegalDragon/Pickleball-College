@@ -41,6 +41,9 @@ public interface ISessionService
     Task<List<TrainingSession>> GetCoachSessionsAsync(int coachId);
     Task<List<TrainingSession>> GetStudentSessionsAsync(int studentId);
     Task<bool> CancelSessionAsync(int sessionId, int userId);
+    Task<TrainingSession> RequestSessionAsync(CreateSessionRequest request, int studentId);
+    Task<TrainingSession> ConfirmSessionAsync(ConfirmSessionRequest request, int coachId);
+    Task<List<TrainingSession>> GetPendingSessionsAsync(int coachId);
 }
 
 public interface ICourseService
