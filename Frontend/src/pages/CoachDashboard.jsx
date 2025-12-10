@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { materialApi, sessionApi } from '../services/api'
+import { materialApi, sessionApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Users, DollarSign, Video, Calendar, RefreshCw, AlertCircle } from 'lucide-react'
+import { Plus, Users, DollarSign, Video, Calendar, RefreshCw, AlertCircle, Eye, Edit2 } from 'lucide-react'
 
 const CoachDashboard = () => {
   const [materials, setMaterials] = useState([])
@@ -225,7 +225,7 @@ const CoachDashboard = () => {
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-medium text-gray-900">Recent Materials</h2>
                 <Link
-                  to="/coach/materials/create"
+                  to="/Coach/Materials/Create"
                   className="flex items-center text-primary-600 hover:text-primary-700"
                 >
                   <Plus className="w-4 h-4 mr-1" />
@@ -237,33 +237,53 @@ const CoachDashboard = () => {
               {materials.length > 0 ? (
                 materials.map((material) => (
                   <div key={material.id || material._id} className="px-6 py-4 hover:bg-gray-50 group">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-sm font-medium text-gray-900">{material.title || 'Untitled Material'}</h3>
-                        <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                    <div className="flex items-start">
+                      {/* Thumbnail */}
+                      <div className="flex-shrink-0 w-20 h-14 rounded-lg overflow-hidden bg-gray-100 mr-4">
+                        {material.thumbnailUrl ? (
+                          <img
+                            src={getAssetUrl(material.thumbnailUrl)}
+                            alt={material.title || 'Material thumbnail'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Video className="w-6 h-6 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-medium text-gray-900 truncate">{material.title || 'Untitled Material'}</h3>
+                        <p className="text-sm text-gray-500 mt-1 line-clamp-1">
                           {material.description || 'No description'}
                         </p>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-sm text-gray-600">
+                        <div className="flex items-center mt-2 space-x-3">
+                          <span className="text-sm font-medium text-gray-900">
                             ${material.price ? material.price.toFixed(2) : '0.00'}
                           </span>
-                          <span className="text-xs text-gray-500 capitalize">
-                            {material.contentType || 'Unknown type'}
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize">
+                            {material.contentType || 'Unknown'}
                           </span>
                         </div>
                       </div>
-                      <div className="ml-4 flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link
-                          to={`/coach/materials/edit/${material.id || material._id}`}
-                          className="text-sm text-primary-600 hover:text-primary-700 font-medium"
-                        >
-                          Edit
-                        </Link>
+
+                      {/* Actions */}
+                      <div className="ml-4 flex items-center space-x-1">
                         <Link
                           to={`/coach/materials/${material.id || material._id}`}
-                          className="text-sm text-gray-600 hover:text-gray-900 font-medium"
+                          className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="View"
                         >
-                          View
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                        <Link
+                          to={`/coach/materials/edit/${material.id || material._id}`}
+                          className="p-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4" />
                         </Link>
                       </div>
                     </div>
@@ -274,7 +294,7 @@ const CoachDashboard = () => {
                   <Video className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500">No materials yet</p>
                   <Link
-                    to="/coach/materials/create"
+                    to="/Coach/Materials/Create"
                     className="inline-block mt-2 text-primary-600 hover:text-primary-700 text-sm font-medium"
                   >
                     Create your first material
