@@ -91,6 +91,8 @@ public class MaterialService : IMaterialService
                 Price = m.Price,
                 ThumbnailUrl = m.ThumbnailUrl,
                 VideoUrl = m.VideoUrl,
+                ExternalLink = m.ExternalLink,
+                IsPublished = m.IsPublished,
                 CreatedAt = m.CreatedAt,
                 Coach = new CoachDto
                 {
@@ -118,6 +120,8 @@ public class MaterialService : IMaterialService
                 Price = m.Price,
                 ThumbnailUrl = m.ThumbnailUrl,
                 VideoUrl = m.VideoUrl,
+                ExternalLink = m.ExternalLink,
+                IsPublished = m.IsPublished,
                 CreatedAt = m.CreatedAt,
                 Coach = new CoachDto
                 {
@@ -149,6 +153,8 @@ public class MaterialService : IMaterialService
                 Price = m.Price,
                 ThumbnailUrl = m.ThumbnailUrl,
                 VideoUrl = m.VideoUrl,
+                ExternalLink = m.ExternalLink,
+                IsPublished = m.IsPublished,
                 CreatedAt = m.CreatedAt,
                 Coach = new CoachDto
                 {
@@ -158,5 +164,22 @@ public class MaterialService : IMaterialService
                 }
             })
             .FirstOrDefaultAsync() ?? throw new ArgumentException("Material not found");
+    }
+
+    public async Task<MaterialDto> TogglePublishAsync(int materialId, int coachId)
+    {
+        var material = await _context.TrainingMaterials
+            .FirstOrDefaultAsync(m => m.Id == materialId && m.CoachId == coachId);
+
+        if (material == null)
+        {
+            throw new ArgumentException("Material not found or unauthorized");
+        }
+
+        material.IsPublished = !material.IsPublished;
+        material.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return await GetMaterialDtoAsync(materialId);
     }
 }

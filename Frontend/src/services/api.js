@@ -152,8 +152,10 @@ export const materialApi = {
     api.delete(`/materials/${id}`),
 
   getMaterial: (id) =>
-    api.get(`/materials/${id}`)
-  
+    api.get(`/materials/${id}`),
+
+  togglePublish: (id) =>
+    api.post(`/materials/${id}/toggle-publish`)
 }
 
 export const sessionApi = {

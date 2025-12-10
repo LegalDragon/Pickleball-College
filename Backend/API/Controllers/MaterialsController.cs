@@ -100,4 +100,29 @@ public class MaterialsController : ControllerBase
             return BadRequest($"Purchase failed: {ex.Message}");
         }
     }
+
+    [HttpPost("{materialId}/toggle-publish")]
+    [Authorize(Roles = "Coach,Admin")]
+    public async Task<ActionResult<MaterialDto>> TogglePublish(int materialId)
+    {
+        var coachIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(coachIdStr) || !int.TryParse(coachIdStr, out var coachId))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var material = await _materialService.TogglePublishAsync(materialId, coachId);
+            return Ok(material);
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to toggle publish status: {ex.Message}");
+        }
+    }
 }

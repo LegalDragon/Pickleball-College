@@ -11,6 +11,7 @@ public class MaterialDto
     public string ThumbnailUrl { get; set; }
     public string VideoUrl { get; set; }
     public string ExternalLink { get; set; }
+    public bool IsPublished { get; set; }
     public DateTime CreatedAt { get; set; }
     public CoachDto Coach { get; set; } = null!;
 }

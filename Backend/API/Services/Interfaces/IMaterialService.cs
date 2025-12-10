@@ -10,6 +10,7 @@ public interface IMaterialService
     Task<List<MaterialDto>> GetPublishedMaterialsAsync();
     Task<List<MaterialDto>> GetCoachMaterialsAsync(int coachId);
     Task<MaterialDto> GetMaterialAsync(int materialId);
+    Task<MaterialDto> TogglePublishAsync(int materialId, int coachId);
 }
 
 public interface IFileStorageService
