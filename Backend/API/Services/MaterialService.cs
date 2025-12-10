@@ -84,6 +84,7 @@ public class MaterialService : IMaterialService
             .Select(m => new MaterialDto
             {
                 Id = m.Id,
+                CoachId = m.CoachId,
                 Title = m.Title,
                 Description = m.Description,
                 ContentType = m.ContentType,
@@ -110,6 +111,7 @@ public class MaterialService : IMaterialService
             .Select(m => new MaterialDto
             {
                 Id = m.Id,
+                CoachId = m.CoachId,
                 Title = m.Title,
                 Description = m.Description,
                 ContentType = m.ContentType,
@@ -140,6 +142,7 @@ public class MaterialService : IMaterialService
             .Select(m => new MaterialDto
             {
                 Id = m.Id,
+                CoachId = m.CoachId,
                 Title = m.Title,
                 Description = m.Description,
                 ContentType = m.ContentType,

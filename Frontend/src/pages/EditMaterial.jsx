@@ -42,37 +42,18 @@ const EditMaterial = () => {
 
     try {
       setLoadingMaterial(true)
-      const response = await materialApi.getMaterial(id)
+      const material = await materialApi.getMaterial(id)
 
-      console.log('EditMaterial - API response:', response)
+      console.log('EditMaterial - API response:', material)
 
-      // Handle various API response structures
-      let material = null
-
-      // Check if response has nested data property (ApiResponse wrapper)
-      if (response && typeof response === 'object') {
-        if (response.data && typeof response.data === 'object' && (response.data.id || response.data.Id)) {
-          // Wrapped: { success: true, data: { id, title, ... } }
-          material = response.data
-        } else if (response.id || response.Id) {
-          // Direct object: { id, title, ... }
-          material = response
-        } else if (response.success === false) {
-          throw new Error(response.message || 'Failed to load material')
-        }
+      if (!material || !material.id) {
+        throw new Error('Material not found')
       }
 
-      console.log('EditMaterial - Extracted material:', material)
+      // Check authorization
+      console.log('EditMaterial - Coach ID check:', material.coachId, 'vs user.id:', user.id)
 
-      if (!material) {
-        throw new Error('Material not found or invalid response format')
-      }
-
-      // Check authorization - handle both coachId and CoachId (case variations)
-      const materialCoachId = material.coachId || material.CoachId
-      console.log('EditMaterial - Coach ID check:', materialCoachId, 'vs user.id:', user.id)
-
-      if (materialCoachId && materialCoachId !== user.id && user.role !== 'Admin') {
+      if (material.coachId && material.coachId !== user.id && user.role !== 'Admin') {
         alert('You are not authorized to edit this material')
         navigate('/coach/dashboard')
         return
@@ -82,11 +63,11 @@ const EditMaterial = () => {
 
       // Reset form with material data
       reset({
-        title: material.title || material.Title || '',
-        description: material.description || material.Description || '',
-        contentType: material.contentType || material.ContentType || 'Video',
-        externalLink: material.externalLink || material.ExternalLink || '',
-        price: material.price ?? material.Price ?? 0
+        title: material.title || '',
+        description: material.description || '',
+        contentType: material.contentType || 'Video',
+        externalLink: material.externalLink || '',
+        price: material.price ?? 0
       })
 
     } catch (error) {

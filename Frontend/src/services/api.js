@@ -141,24 +141,18 @@ export const materialApi = {
   purchaseMaterial: (materialId) => 
     api.post(`/materials/${materialId}/purchase`),
 
-  updateMaterial: async (id, data) => {
-    const response = await api.put(`/materials/${id}`, data, {
+  updateMaterial: (id, data) =>
+    api.put(`/materials/${id}`, data, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
-    })
-    return response.data
-  },
-  
-  deleteMaterial: async (id) => {
-    const response = await api.delete(`/materials/${id}`)
-    return response.data
-  },
-  
-  getMaterial: async (id) => {
-    const response = await api.get(`/materials/${id}`)
-    return response.data
-  }
+    }),
+
+  deleteMaterial: (id) =>
+    api.delete(`/materials/${id}`),
+
+  getMaterial: (id) =>
+    api.get(`/materials/${id}`)
   
 }
 
