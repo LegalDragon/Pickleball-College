@@ -161,26 +161,32 @@ public class MaterialService : IMaterialService
                 .ToHashSet();
         }
 
-        return materials.Select(m => new MaterialDto
-        {
-            Id = m.Id,
-            CoachId = m.CoachId,
-            Title = m.Title,
-            Description = m.Description,
-            ContentType = m.ContentType,
-            Price = m.Price,
-            ThumbnailUrl = m.ThumbnailUrl,
-            VideoUrl = m.VideoUrl,
-            ExternalLink = m.ExternalLink,
-            IsPublished = m.IsPublished,
-            HasPurchased = purchasedMaterialIds.Contains(m.Id),
-            CreatedAt = m.CreatedAt,
-            Coach = new CoachDto
+        return materials.Select(m => {
+            var hasPurchased = purchasedMaterialIds.Contains(m.Id);
+            var isOwner = userId.HasValue && m.CoachId == userId.Value;
+
+            return new MaterialDto
             {
-                FirstName = m.Coach.FirstName,
-                LastName = m.Coach.LastName,
-                ProfileImageUrl = m.Coach.ProfileImageUrl
-            }
+                Id = m.Id,
+                CoachId = m.CoachId,
+                Title = m.Title,
+                Description = m.Description,
+                ContentType = m.ContentType,
+                Price = m.Price,
+                ThumbnailUrl = m.ThumbnailUrl,
+                // Only return content URLs if user has purchased or is the owner
+                VideoUrl = (hasPurchased || isOwner) ? m.VideoUrl : null,
+                ExternalLink = (hasPurchased || isOwner) ? m.ExternalLink : null,
+                IsPublished = m.IsPublished,
+                HasPurchased = hasPurchased,
+                CreatedAt = m.CreatedAt,
+                Coach = new CoachDto
+                {
+                    FirstName = m.Coach.FirstName,
+                    LastName = m.Coach.LastName,
+                    ProfileImageUrl = m.Coach.ProfileImageUrl
+                }
+            };
         }).ToList();
     }
 
@@ -213,13 +219,50 @@ public class MaterialService : IMaterialService
             .ToListAsync();
     }
 
-    public async Task<MaterialDto> GetMaterialAsync(int materialId)
+    public async Task<MaterialDto> GetMaterialAsync(int materialId, int? userId = null)
     {
-        return await GetMaterialDtoAsync(materialId);
+        var material = await _context.TrainingMaterials
+            .Where(m => m.Id == materialId)
+            .Include(m => m.Coach)
+            .FirstOrDefaultAsync() ?? throw new ArgumentException("Material not found");
+
+        // Check if user has purchased this material
+        var hasPurchased = false;
+        if (userId.HasValue)
+        {
+            hasPurchased = await _context.MaterialPurchases
+                .AnyAsync(mp => mp.MaterialId == materialId && mp.StudentId == userId.Value);
+        }
+
+        var isOwner = userId.HasValue && material.CoachId == userId.Value;
+
+        return new MaterialDto
+        {
+            Id = material.Id,
+            CoachId = material.CoachId,
+            Title = material.Title,
+            Description = material.Description,
+            ContentType = material.ContentType,
+            Price = material.Price,
+            ThumbnailUrl = material.ThumbnailUrl,
+            // Only return content URLs if user has purchased or is the owner
+            VideoUrl = (hasPurchased || isOwner) ? material.VideoUrl : null,
+            ExternalLink = (hasPurchased || isOwner) ? material.ExternalLink : null,
+            IsPublished = material.IsPublished,
+            HasPurchased = hasPurchased,
+            CreatedAt = material.CreatedAt,
+            Coach = new CoachDto
+            {
+                FirstName = material.Coach.FirstName,
+                LastName = material.Coach.LastName,
+                ProfileImageUrl = material.Coach.ProfileImageUrl
+            }
+        };
     }
 
     private async Task<MaterialDto> GetMaterialDtoAsync(int materialId)
     {
+        // This internal method returns full content (used by coaches for their own materials)
         return await _context.TrainingMaterials
             .Where(m => m.Id == materialId)
             .Include(m => m.Coach)

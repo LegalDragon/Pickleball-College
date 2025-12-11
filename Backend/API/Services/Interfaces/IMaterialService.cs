@@ -10,7 +10,7 @@ public interface IMaterialService
     Task<PurchaseResult> PurchaseMaterialAsync(int studentId, int materialId);
     Task<List<MaterialDto>> GetPublishedMaterialsAsync(int? userId = null);
     Task<List<MaterialDto>> GetCoachMaterialsAsync(int coachId);
-    Task<MaterialDto> GetMaterialAsync(int materialId);
+    Task<MaterialDto> GetMaterialAsync(int materialId, int? userId = null);
     Task<MaterialDto> TogglePublishAsync(int materialId, int coachId);
 }
 

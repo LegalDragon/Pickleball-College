@@ -81,7 +81,15 @@ public class MaterialsController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<MaterialDto>> GetMaterial(int materialId)
     {
-        var material = await _materialService.GetMaterialAsync(materialId);
+        // Get userId if authenticated (to check purchased status and show content)
+        int? userId = null;
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrEmpty(userIdStr) && int.TryParse(userIdStr, out var parsedUserId))
+        {
+            userId = parsedUserId;
+        }
+
+        var material = await _materialService.GetMaterialAsync(materialId, userId);
         return Ok(material);
     }
 
