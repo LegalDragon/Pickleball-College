@@ -51,15 +51,34 @@ builder.Services.AddScoped<IRatingService, RatingService>();
 builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<IVideoReviewService, VideoReviewService>();
 
-// CORS
+// CORS - Load allowed origins from configuration
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("ReactClient", policy =>
+    options.AddPolicy("AllowConfiguredOrigins", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        policy.SetIsOriginAllowed(origin =>
+        {
+            // Always allow same-host requests (no origin header or matching host)
+            if (string.IsNullOrEmpty(origin))
+                return true;
+
+            var originUri = new Uri(origin);
+
+            // Check if origin is in the configured list
+            if (corsOrigins.Any(allowed =>
+                origin.Equals(allowed, StringComparison.OrdinalIgnoreCase)))
+                return true;
+
+            // Allow localhost variants for development
+            if (originUri.Host == "localhost" || originUri.Host == "127.0.0.1")
+                return true;
+
+            return false;
+        })
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials();
     });
 });
 
@@ -72,7 +91,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors("ReactClient");
+app.UseCors("AllowConfiguredOrigins");
 app.UseStaticFiles(); // Enable serving static files from wwwroot
 app.UseAuthentication();
 app.UseAuthorization();
