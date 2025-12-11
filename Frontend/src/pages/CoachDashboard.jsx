@@ -26,6 +26,7 @@ const CoachDashboard = () => {
   // Session management state
   const [selectedSession, setSelectedSession] = useState(null)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [showSessionProposalModal, setShowSessionProposalModal] = useState(false)
 
   // Video review proposal state
   const [selectedVideoRequest, setSelectedVideoRequest] = useState(null)
@@ -136,6 +137,11 @@ const CoachDashboard = () => {
   const handleConfirmSession = (session) => {
     setSelectedSession(session)
     setShowConfirmModal(true)
+  }
+
+  const handleProposeSessionChanges = (session) => {
+    setSelectedSession(session)
+    setShowSessionProposalModal(true)
   }
 
   const handleRejectSession = async (sessionId) => {
@@ -339,13 +345,20 @@ const CoachDashboard = () => {
                         </p>
                       )}
                     </div>
-                    <div className="ml-4 flex gap-2">
+                    <div className="ml-4 flex gap-2 flex-wrap">
                       <button
                         onClick={() => handleConfirmSession(session)}
                         className="flex items-center gap-1 px-3 py-2 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 transition-colors"
                       >
                         <Check className="w-4 h-4" />
                         Accept
+                      </button>
+                      <button
+                        onClick={() => handleProposeSessionChanges(session)}
+                        className="flex items-center gap-1 px-3 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                        Propose Changes
                       </button>
                       <button
                         onClick={() => handleRejectSession(session.id)}
@@ -683,6 +696,22 @@ const CoachDashboard = () => {
           }}
         />
       )}
+
+      {/* Session Proposal Modal */}
+      {showSessionProposalModal && selectedSession && (
+        <SessionProposalModal
+          session={selectedSession}
+          onClose={() => {
+            setShowSessionProposalModal(false)
+            setSelectedSession(null)
+          }}
+          onSuccess={() => {
+            setShowSessionProposalModal(false)
+            setSelectedSession(null)
+            loadDashboardData()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -924,6 +953,177 @@ const VideoProposalModal = ({ request, onClose, onSuccess }) => {
               type="submit"
               disabled={submitting}
               className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 flex items-center justify-center gap-2"
+            >
+              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              Submit Proposal
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// Session Proposal Modal Component (Coach proposes changes to session request)
+const SessionProposalModal = ({ session, onClose, onSuccess }) => {
+  // Initialize with session's current values
+  const [formData, setFormData] = useState({
+    proposedScheduledAt: session.requestedAt
+      ? new Date(session.requestedAt).toISOString().slice(0, 16)
+      : '',
+    proposedDurationMinutes: session.durationMinutes || 60,
+    proposedPrice: session.price || 50,
+    proposedLocation: session.location || '',
+    note: ''
+  })
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      await sessionApi.proposeChanges(session.id, {
+        proposedScheduledAt: formData.proposedScheduledAt ? new Date(formData.proposedScheduledAt).toISOString() : null,
+        proposedDurationMinutes: formData.proposedDurationMinutes,
+        proposedPrice: formData.proposedPrice,
+        proposedLocation: session.sessionType === 'InPerson' ? formData.proposedLocation : null,
+        note: formData.note || null
+      })
+      onSuccess()
+    } catch (error) {
+      alert('Failed to submit proposal: ' + (error.message || 'Unknown error'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="text-lg font-semibold">Propose Session Changes</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-4 bg-gray-50 border-b">
+          <p className="text-sm text-gray-600">
+            <strong>Student:</strong> {session.studentName || `${session.student?.firstName} ${session.student?.lastName}`}
+          </p>
+          <p className="text-sm text-gray-600 mt-1">
+            <strong>Original Request:</strong> {session.requestedAt ? new Date(session.requestedAt).toLocaleString() : 'Not specified'}
+          </p>
+          <p className="text-sm text-gray-600 mt-1">
+            <strong>Duration:</strong> {session.durationMinutes} minutes • {session.sessionType}
+          </p>
+          {session.notes && (
+            <p className="text-sm text-gray-600 mt-2">
+              <strong>Notes:</strong> "{session.notes}"
+            </p>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Calendar className="w-4 h-4 inline mr-1" />
+              Proposed Date & Time
+            </label>
+            <input
+              type="datetime-local"
+              value={formData.proposedScheduledAt}
+              onChange={(e) => setFormData({ ...formData, proposedScheduledAt: e.target.value })}
+              min={new Date().toISOString().slice(0, 16)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Leave empty to accept the student's requested time
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Clock className="w-4 h-4 inline mr-1" />
+              Proposed Duration
+            </label>
+            <select
+              value={formData.proposedDurationMinutes}
+              onChange={(e) => setFormData({ ...formData, proposedDurationMinutes: Number(e.target.value) })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            >
+              <option value={30}>30 minutes</option>
+              <option value={60}>1 hour</option>
+              <option value={90}>1.5 hours</option>
+              <option value={120}>2 hours</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <DollarSign className="w-4 h-4 inline mr-1" />
+              Proposed Price ($)
+            </label>
+            <input
+              type="number"
+              value={formData.proposedPrice}
+              onChange={(e) => setFormData({ ...formData, proposedPrice: Number(e.target.value) })}
+              min={0}
+              step={5}
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            />
+          </div>
+
+          {session.sessionType === 'InPerson' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <MapPin className="w-4 h-4 inline mr-1" />
+                Proposed Location
+              </label>
+              <input
+                type="text"
+                value={formData.proposedLocation}
+                onChange={(e) => setFormData({ ...formData, proposedLocation: e.target.value })}
+                placeholder="e.g., Central Park Courts, 123 Main St..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <MessageSquare className="w-4 h-4 inline mr-1" />
+              Message to Student (optional)
+            </label>
+            <textarea
+              value={formData.note}
+              onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+              rows={3}
+              placeholder="Explain the reason for the proposed changes..."
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            />
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800">
+              <strong>How it works:</strong> Your proposed changes will be sent to the student.
+              They can accept, decline, or request something different.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 flex items-center justify-center gap-2"
             >
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
               Submit Proposal

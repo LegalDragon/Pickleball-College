@@ -29,6 +29,16 @@ public class TrainingSession
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    // Coach proposal fields (for counter-proposals)
+    public DateTime? ProposedScheduledAt { get; set; }
+    public int? ProposedDurationMinutes { get; set; }
+    public decimal? ProposedPrice { get; set; }
+    [MaxLength(200)]
+    public string? ProposedLocation { get; set; }
+    [MaxLength(500)]
+    public string? ProposalNote { get; set; }
+    public DateTime? ProposedAt { get; set; }
+
     public User Coach { get; set; } = null!;
     public User Student { get; set; } = null!;
     public TrainingMaterial? Material { get; set; }

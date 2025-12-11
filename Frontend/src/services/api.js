@@ -174,6 +174,22 @@ export const sessionApi = {
   getPendingSessions: () =>
     api.get('/sessions/pending'),
 
+  // Coach proposes changes to a session
+  proposeChanges: (sessionId, data) =>
+    api.post(`/sessions/${sessionId}/propose`, data),
+
+  // Student accepts coach's proposal
+  acceptProposal: (sessionId) =>
+    api.post(`/sessions/${sessionId}/accept-proposal`),
+
+  // Student declines coach's proposal
+  declineProposal: (sessionId) =>
+    api.post(`/sessions/${sessionId}/decline-proposal`),
+
+  // Get sessions with pending proposals (for student)
+  getSessionsWithProposals: () =>
+    api.get('/sessions/proposals'),
+
   getCoachSessions: (coachId) => {
     console.log('Getting sessions for coach:', coachId);
     return api.get(`/sessions/coach/${coachId}`)

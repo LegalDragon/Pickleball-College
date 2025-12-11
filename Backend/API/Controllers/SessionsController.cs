@@ -133,6 +133,95 @@ public class SessionsController : ControllerBase
         return Ok(new { Message = "Session cancelled successfully" });
     }
 
+    /// <summary>
+    /// Coach proposes changes to a pending session request
+    /// </summary>
+    [HttpPost("{sessionId}/propose")]
+    [Authorize]
+    public async Task<ActionResult> ProposeSessionChanges(int sessionId, [FromBody] SessionProposalRequest proposal)
+    {
+        var coachId = GetUserId();
+        if (coachId == null) return Unauthorized();
+
+        try
+        {
+            var session = await _sessionService.ProposeSessionChangesAsync(sessionId, coachId.Value, proposal);
+            return Ok(MapToDto(session));
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Student accepts a coach's session proposal
+    /// </summary>
+    [HttpPost("{sessionId}/accept-proposal")]
+    [Authorize]
+    public async Task<ActionResult> AcceptSessionProposal(int sessionId)
+    {
+        var studentId = GetUserId();
+        if (studentId == null) return Unauthorized();
+
+        try
+        {
+            var session = await _sessionService.AcceptSessionProposalAsync(sessionId, studentId.Value);
+            return Ok(MapToDto(session));
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Student declines a coach's session proposal
+    /// </summary>
+    [HttpPost("{sessionId}/decline-proposal")]
+    [Authorize]
+    public async Task<ActionResult> DeclineSessionProposal(int sessionId)
+    {
+        var studentId = GetUserId();
+        if (studentId == null) return Unauthorized();
+
+        try
+        {
+            var session = await _sessionService.DeclineSessionProposalAsync(sessionId, studentId.Value);
+            return Ok(MapToDto(session));
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get sessions with pending proposals for the student
+    /// </summary>
+    [HttpGet("proposals")]
+    [Authorize]
+    public async Task<ActionResult> GetSessionsWithProposals()
+    {
+        var studentId = GetUserId();
+        if (studentId == null) return Unauthorized();
+
+        var sessions = await _sessionService.GetSessionsWithProposalsAsync(studentId.Value);
+        return Ok(sessions.Select(MapToDto).ToList());
+    }
+
     private static SessionRequestDto MapToDto(TrainingSession session)
     {
         return new SessionRequestDto
@@ -151,7 +240,14 @@ public class SessionsController : ControllerBase
             MeetingLink = session.MeetingLink,
             Location = session.Location,
             Notes = session.Notes,
-            CreatedAt = session.CreatedAt
+            CreatedAt = session.CreatedAt,
+            // Proposal fields
+            ProposedScheduledAt = session.ProposedScheduledAt,
+            ProposedDurationMinutes = session.ProposedDurationMinutes,
+            ProposedPrice = session.ProposedPrice,
+            ProposedLocation = session.ProposedLocation,
+            ProposalNote = session.ProposalNote,
+            ProposedAt = session.ProposedAt
         };
     }
 

@@ -44,6 +44,12 @@ public interface ISessionService
     Task<TrainingSession> RequestSessionAsync(CreateSessionRequest request, int studentId);
     Task<TrainingSession> ConfirmSessionAsync(ConfirmSessionRequest request, int coachId);
     Task<List<TrainingSession>> GetPendingSessionsAsync(int coachId);
+
+    // Session proposal methods (coach counter-proposes changes)
+    Task<TrainingSession> ProposeSessionChangesAsync(int sessionId, int coachId, SessionProposalRequest proposal);
+    Task<TrainingSession> AcceptSessionProposalAsync(int sessionId, int studentId);
+    Task<TrainingSession> DeclineSessionProposalAsync(int sessionId, int studentId);
+    Task<List<TrainingSession>> GetSessionsWithProposalsAsync(int studentId);
 }
 
 public interface ICourseService

@@ -459,13 +459,53 @@ const CoachCard = ({ coach, rating, onRequestSession }) => (
 
 // Sessions Tab Component
 const SessionsTab = ({ sessions, onRefresh }) => {
+  const [actionLoading, setActionLoading] = useState(null)
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'Pending': return 'bg-yellow-100 text-yellow-800'
+      case 'PendingStudentApproval': return 'bg-orange-100 text-orange-800'
       case 'Confirmed': return 'bg-green-100 text-green-800'
       case 'Completed': return 'bg-blue-100 text-blue-800'
       case 'Cancelled': return 'bg-red-100 text-red-800'
       default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'Pending': return 'Pending Coach Response'
+      case 'PendingStudentApproval': return 'Coach Proposed Changes'
+      case 'Confirmed': return 'Confirmed'
+      case 'Completed': return 'Completed'
+      case 'Cancelled': return 'Cancelled'
+      default: return status
+    }
+  }
+
+  const handleAcceptProposal = async (sessionId) => {
+    if (!confirm('Accept the coach\'s proposed changes?')) return
+    setActionLoading(sessionId)
+    try {
+      await sessionApi.acceptProposal(sessionId)
+      onRefresh()
+    } catch (error) {
+      alert('Failed to accept: ' + (error.message || 'Unknown error'))
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleDeclineProposal = async (sessionId) => {
+    if (!confirm('Decline this proposal? Your original request will be sent back to the coach.')) return
+    setActionLoading(sessionId)
+    try {
+      await sessionApi.declineProposal(sessionId)
+      onRefresh()
+    } catch (error) {
+      alert('Failed to decline: ' + (error.message || 'Unknown error'))
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -512,7 +552,7 @@ const SessionsTab = ({ sessions, onRefresh }) => {
                 </div>
                 <div className="text-right">
                   <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
-                    {session.status}
+                    {getStatusLabel(session.status)}
                   </span>
                   {session.price > 0 && (
                     <p className="text-lg font-bold text-gray-900 mt-2">
@@ -521,6 +561,62 @@ const SessionsTab = ({ sessions, onRefresh }) => {
                   )}
                 </div>
               </div>
+
+              {/* Coach Proposal Section */}
+              {session.status === 'PendingStudentApproval' && session.proposedAt && (
+                <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                  <p className="font-medium text-orange-800 mb-2">Coach Proposed Changes:</p>
+                  <div className="space-y-1 text-sm text-orange-700">
+                    {session.proposedScheduledAt && (
+                      <p>
+                        <Calendar className="w-4 h-4 inline mr-1" />
+                        <strong>New Time:</strong> {new Date(session.proposedScheduledAt).toLocaleString()}
+                      </p>
+                    )}
+                    {session.proposedDurationMinutes && (
+                      <p>
+                        <Clock className="w-4 h-4 inline mr-1" />
+                        <strong>Duration:</strong> {session.proposedDurationMinutes} minutes
+                      </p>
+                    )}
+                    {session.proposedPrice !== null && session.proposedPrice !== undefined && (
+                      <p>
+                        <DollarSign className="w-4 h-4 inline mr-1" />
+                        <strong>Price:</strong> ${session.proposedPrice?.toFixed(2)}
+                      </p>
+                    )}
+                    {session.proposedLocation && (
+                      <p>
+                        📍 <strong>Location:</strong> {session.proposedLocation}
+                      </p>
+                    )}
+                    {session.proposalNote && (
+                      <p className="mt-2 italic">
+                        <MessageSquare className="w-4 h-4 inline mr-1" />
+                        "{session.proposalNote}"
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => handleDeclineProposal(session.id)}
+                      disabled={actionLoading === session.id}
+                      className="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                    >
+                      Decline
+                    </button>
+                    <button
+                      onClick={() => handleAcceptProposal(session.id)}
+                      disabled={actionLoading === session.id}
+                      className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {actionLoading === session.id && <Loader2 className="w-3 h-3 animate-spin" />}
+                      Accept Changes
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {session.status === 'Confirmed' && (
                 <div className="mt-3 flex gap-2 flex-wrap">
                   {session.meetingLink && (

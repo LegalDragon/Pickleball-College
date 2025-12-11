@@ -87,6 +87,14 @@ public class SessionRequestDto
     public string? Location { get; set; }
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    // Coach proposal fields
+    public DateTime? ProposedScheduledAt { get; set; }
+    public int? ProposedDurationMinutes { get; set; }
+    public decimal? ProposedPrice { get; set; }
+    public string? ProposedLocation { get; set; }
+    public string? ProposalNote { get; set; }
+    public DateTime? ProposedAt { get; set; }
 }
 
 public class CreateSessionRequest
@@ -104,6 +112,15 @@ public class ConfirmSessionRequest
     public decimal Price { get; set; }
     public string? MeetingLink { get; set; }
     public string? Location { get; set; }
+}
+
+public class SessionProposalRequest
+{
+    public DateTime? ProposedScheduledAt { get; set; }
+    public int? ProposedDurationMinutes { get; set; }
+    public decimal? ProposedPrice { get; set; }
+    public string? ProposedLocation { get; set; }
+    public string? Note { get; set; }
 }
 
 // Coach search result DTO
