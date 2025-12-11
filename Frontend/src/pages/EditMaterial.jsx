@@ -5,6 +5,7 @@ import { materialApi, assetApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { Upload, Video, Image, FileText, Link, ArrowLeft, Play, Eye, EyeOff, Loader2 } from 'lucide-react'
 import VideoUploadModal from '../components/ui/VideoUploadModal'
+import TagSelector from '../components/TagSelector'
 
 const EditMaterial = () => {
   const [videoUrl, setVideoUrl] = useState(null)
@@ -527,6 +528,16 @@ const EditMaterial = () => {
                 )}
               </div>
             </div>
+
+            {/* Tags Section */}
+            {currentMaterial?.id && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <TagSelector
+                  objectType="Material"
+                  objectId={currentMaterial.id}
+                />
+              </div>
+            )}
 
             {/* Submit Buttons */}
             <div className="flex justify-between pt-6 border-t border-gray-200">
