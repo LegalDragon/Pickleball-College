@@ -110,8 +110,8 @@ export const authApi = {
   },
   
   
-  register: (userData) => 
-    api.post('/auth/register', userData).then(res => res.data),
+  register: (userData) =>
+    api.post('/auth/register', userData),
 
   forgotPassword: (email) => {
     return axios.post('/api/auth/forgot-password', { email })
