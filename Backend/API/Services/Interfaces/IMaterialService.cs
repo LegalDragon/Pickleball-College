@@ -8,7 +8,7 @@ public interface IMaterialService
     Task<MaterialDto> CreateMaterialAsync(int coachId, CreateMaterialRequest request, string? videoUrl, string? thumbnailUrl);
     Task<MaterialDto> UpdateMaterialAsync(int materialId, int coachId, UpdateMaterialRequest request, string? videoUrl, string? thumbnailUrl);
     Task<PurchaseResult> PurchaseMaterialAsync(int studentId, int materialId);
-    Task<List<MaterialDto>> GetPublishedMaterialsAsync();
+    Task<List<MaterialDto>> GetPublishedMaterialsAsync(int? userId = null);
     Task<List<MaterialDto>> GetCoachMaterialsAsync(int coachId);
     Task<MaterialDto> GetMaterialAsync(int materialId);
     Task<MaterialDto> TogglePublishAsync(int materialId, int coachId);

@@ -142,33 +142,46 @@ public class MaterialService : IMaterialService
         };
     }
 
-    public async Task<List<MaterialDto>> GetPublishedMaterialsAsync()
+    public async Task<List<MaterialDto>> GetPublishedMaterialsAsync(int? userId = null)
     {
-        return await _context.TrainingMaterials
+        var materials = await _context.TrainingMaterials
             .Where(m => m.IsPublished)
             .Include(m => m.Coach)
             .OrderByDescending(m => m.CreatedAt)
-            .Select(m => new MaterialDto
-            {
-                Id = m.Id,
-                CoachId = m.CoachId,
-                Title = m.Title,
-                Description = m.Description,
-                ContentType = m.ContentType,
-                Price = m.Price,
-                ThumbnailUrl = m.ThumbnailUrl,
-                VideoUrl = m.VideoUrl,
-                ExternalLink = m.ExternalLink,
-                IsPublished = m.IsPublished,
-                CreatedAt = m.CreatedAt,
-                Coach = new CoachDto
-                {
-                    FirstName = m.Coach.FirstName,
-                    LastName = m.Coach.LastName,
-                    ProfileImageUrl = m.Coach.ProfileImageUrl
-                }
-            })
             .ToListAsync();
+
+        // Get purchased material IDs for the user
+        var purchasedMaterialIds = new HashSet<int>();
+        if (userId.HasValue)
+        {
+            purchasedMaterialIds = (await _context.MaterialPurchases
+                .Where(mp => mp.StudentId == userId.Value)
+                .Select(mp => mp.MaterialId)
+                .ToListAsync())
+                .ToHashSet();
+        }
+
+        return materials.Select(m => new MaterialDto
+        {
+            Id = m.Id,
+            CoachId = m.CoachId,
+            Title = m.Title,
+            Description = m.Description,
+            ContentType = m.ContentType,
+            Price = m.Price,
+            ThumbnailUrl = m.ThumbnailUrl,
+            VideoUrl = m.VideoUrl,
+            ExternalLink = m.ExternalLink,
+            IsPublished = m.IsPublished,
+            HasPurchased = purchasedMaterialIds.Contains(m.Id),
+            CreatedAt = m.CreatedAt,
+            Coach = new CoachDto
+            {
+                FirstName = m.Coach.FirstName,
+                LastName = m.Coach.LastName,
+                ProfileImageUrl = m.Coach.ProfileImageUrl
+            }
+        }).ToList();
     }
 
     public async Task<List<MaterialDto>> GetCoachMaterialsAsync(int coachId)

@@ -335,12 +335,25 @@ const BrowseTab = ({
 // Course Card
 const CourseCard = ({ course, rating, onPurchase }) => (
   <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-    {course.thumbnailUrl && (
-      <img
-        src={getAssetUrl(course.thumbnailUrl)}
-        alt={course.title}
-        className="w-full h-40 object-cover"
-      />
+    {course.thumbnailUrl ? (
+      <div className="relative">
+        <img
+          src={getAssetUrl(course.thumbnailUrl)}
+          alt={course.title}
+          className="w-full h-40 object-cover"
+        />
+        {course.hasPurchased && (
+          <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1">
+            <CheckCircle className="w-3 h-3" />
+            Purchased
+          </div>
+        )}
+      </div>
+    ) : course.hasPurchased && (
+      <div className="bg-green-50 px-3 py-2 flex items-center gap-1 text-green-700 text-xs font-medium">
+        <CheckCircle className="w-3 h-3" />
+        Purchased
+      </div>
     )}
     <div className="p-4">
       <h3 className="font-semibold text-gray-900 mb-2">{course.title}</h3>
@@ -357,12 +370,21 @@ const CourseCard = ({ course, rating, onPurchase }) => (
         <span className="text-lg font-bold text-primary-600">
           ${course.price?.toFixed(2)}
         </span>
-        <button
-          onClick={onPurchase}
-          className="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors"
-        >
-          Purchase
-        </button>
+        {course.hasPurchased ? (
+          <Link
+            to={`/courses/${course.id}`}
+            className="px-4 py-2 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 transition-colors"
+          >
+            View Course
+          </Link>
+        ) : (
+          <button
+            onClick={onPurchase}
+            className="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors"
+          >
+            Purchase
+          </button>
+        )}
       </div>
     </div>
   </div>
@@ -371,6 +393,12 @@ const CourseCard = ({ course, rating, onPurchase }) => (
 // Material Card
 const MaterialCard = ({ material, rating, onPurchase }) => (
   <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+    {material.hasPurchased && (
+      <div className="bg-green-50 px-3 py-2 flex items-center gap-1 text-green-700 text-xs font-medium">
+        <CheckCircle className="w-3 h-3" />
+        Purchased
+      </div>
+    )}
     <div className="p-4">
       <div className="flex items-center gap-2 mb-2">
         <Video className="w-5 h-5 text-gray-400" />
@@ -390,12 +418,18 @@ const MaterialCard = ({ material, rating, onPurchase }) => (
         <span className="text-lg font-bold text-primary-600">
           ${material.price?.toFixed(2)}
         </span>
-        <button
-          onClick={onPurchase}
-          className="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors"
-        >
-          Purchase
-        </button>
+        {material.hasPurchased ? (
+          <span className="px-4 py-2 bg-green-100 text-green-700 text-sm rounded-lg font-medium">
+            Owned
+          </span>
+        ) : (
+          <button
+            onClick={onPurchase}
+            className="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors"
+          >
+            Purchase
+          </button>
+        )}
       </div>
     </div>
   </div>

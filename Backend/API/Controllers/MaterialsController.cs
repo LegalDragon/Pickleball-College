@@ -57,7 +57,15 @@ public class MaterialsController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<List<MaterialDto>>> GetPublishedMaterials()
     {
-        var materials = await _materialService.GetPublishedMaterialsAsync();
+        // Get userId if authenticated (to check purchased status)
+        int? userId = null;
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrEmpty(userIdStr) && int.TryParse(userIdStr, out var parsedUserId))
+        {
+            userId = parsedUserId;
+        }
+
+        var materials = await _materialService.GetPublishedMaterialsAsync(userId);
         return Ok(materials);
     }
 

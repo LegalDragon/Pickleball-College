@@ -81,7 +81,15 @@ public class CoursesController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<List<CourseDto>>> GetPublishedCourses()
     {
-        var courses = await _courseService.GetPublishedCoursesAsync();
+        // Get userId if authenticated (to check purchased status)
+        int? userId = null;
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrEmpty(userIdStr) && int.TryParse(userIdStr, out var parsedUserId))
+        {
+            userId = parsedUserId;
+        }
+
+        var courses = await _courseService.GetPublishedCoursesAsync(userId);
         return Ok(courses);
     }
 
