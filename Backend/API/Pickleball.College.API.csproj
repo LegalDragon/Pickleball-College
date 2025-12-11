@@ -15,9 +15,9 @@
 		  <PrivateAssets>all</PrivateAssets>
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 	  </PackageReference>
-	  <PackageReference Include="Microsoft.OpenApi" Version="2.3.0" />  
+	  <PackageReference Include="Microsoft.OpenApi" Version="2.3.0" />
 	  <PackageReference Include="Twilio" Version="6.16.1" />
-	  
+
     <PackageReference Include="Stripe.net" Version="50.0.0" />
 	  <PackageReference Include="Swashbuckle.AspNetCore" Version="10.0.0" />
 	  <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="10.0.0" />
@@ -28,6 +28,11 @@
 
   <ItemGroup>
     <Folder Include="Context\" />
+  </ItemGroup>
+
+  <!-- Ensure web.config is included in publish output -->
+  <ItemGroup>
+    <Content Include="web.config" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
