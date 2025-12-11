@@ -30,9 +30,4 @@
     <Folder Include="Context\" />
   </ItemGroup>
 
-  <!-- Ensure web.config is included in publish output -->
-  <ItemGroup>
-    <Content Include="web.config" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-  </ItemGroup>
-
 </Project>
