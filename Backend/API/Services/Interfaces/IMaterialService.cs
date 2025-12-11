@@ -60,7 +60,7 @@ public interface ICourseService
     Task<CourseDto> GetCourseAsync(int courseId);
     Task<CourseDto> GetCourseWithMaterialsAsync(int courseId, int? userId = null);
     Task<List<CourseDto>> GetCoachCoursesAsync(int coachId);
-    Task<List<CourseDto>> GetPublishedCoursesAsync();
+    Task<List<CourseDto>> GetPublishedCoursesAsync(int? userId = null);
     Task<CourseDto> TogglePublishAsync(int courseId, int coachId);
     Task DeleteCourseAsync(int courseId, int coachId);
 

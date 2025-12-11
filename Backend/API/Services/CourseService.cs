@@ -119,7 +119,7 @@ public class CourseService : ICourseService
         return courses.Select(c => MapToDto(c)).ToList();
     }
 
-    public async Task<List<CourseDto>> GetPublishedCoursesAsync()
+    public async Task<List<CourseDto>> GetPublishedCoursesAsync(int? userId = null)
     {
         var courses = await _context.Courses
             .Include(c => c.Coach)
@@ -128,7 +128,18 @@ public class CourseService : ICourseService
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
 
-        return courses.Select(c => MapToDto(c)).ToList();
+        // Get purchased course IDs for the user
+        var purchasedCourseIds = new HashSet<int>();
+        if (userId.HasValue)
+        {
+            purchasedCourseIds = (await _context.CoursePurchases
+                .Where(cp => cp.StudentId == userId.Value)
+                .Select(cp => cp.CourseId)
+                .ToListAsync())
+                .ToHashSet();
+        }
+
+        return courses.Select(c => MapToDto(c, purchasedCourseIds.Contains(c.Id))).ToList();
     }
 
     public async Task<CourseDto> TogglePublishAsync(int courseId, int coachId)
@@ -328,7 +339,7 @@ public class CourseService : ICourseService
     }
 
     // Helper methods
-    private CourseDto MapToDto(Course course)
+    private CourseDto MapToDto(Course course, bool hasPurchased = false)
     {
         return new CourseDto
         {
@@ -339,6 +350,7 @@ public class CourseService : ICourseService
             ThumbnailUrl = course.ThumbnailUrl,
             Price = course.Price,
             IsPublished = course.IsPublished,
+            HasPurchased = hasPurchased,
             CreatedAt = course.CreatedAt,
             Coach = new CoachDto
             {
@@ -353,7 +365,7 @@ public class CourseService : ICourseService
 
     private CourseDto MapToDtoWithMaterials(Course course, bool hasPurchased, int? userId)
     {
-        var dto = MapToDto(course);
+        var dto = MapToDto(course, hasPurchased);
         dto.Materials = course.CourseMaterials
             .OrderBy(cm => cm.SortOrder)
             .Select(cm => new CourseMaterialDto

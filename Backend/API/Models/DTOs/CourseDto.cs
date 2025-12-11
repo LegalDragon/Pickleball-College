@@ -9,6 +9,7 @@ public class CourseDto
     public string? ThumbnailUrl { get; set; }
     public decimal Price { get; set; }
     public bool IsPublished { get; set; }
+    public bool HasPurchased { get; set; }
     public DateTime CreatedAt { get; set; }
     public CoachDto Coach { get; set; } = null!;
     public List<CourseMaterialDto> Materials { get; set; } = new();
