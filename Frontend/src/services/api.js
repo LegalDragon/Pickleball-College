@@ -2,23 +2,26 @@ import axios from 'axios'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://localhost:7009/api'
 
-// Helper function to get full asset URL (for avatars, images, etc.)
+// Helper function to get full asset URL (for avatars, images, videos, etc.)
 export const getAssetUrl = (path) => {
   if (!path) return null
   // If path is already a full URL, return as-is
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return path
   }
-  // If path starts with /api, replace with API_BASE_URL
+  // Get base URL without /api suffix for asset paths
+  const baseUrl = API_BASE_URL.replace(/\/api\/?$/, '')
+
+  // If path starts with /api, use the full API URL
   if (path.startsWith('/api/')) {
-    return `${API_BASE_URL}${path.substring(4)}`
+    return `${baseUrl}${path}`
   }
-  // If path starts with /, prepend API_BASE_URL
+  // If path starts with /, prepend base URL
   if (path.startsWith('/')) {
-    return `${API_BASE_URL}${path}`
+    return `${baseUrl}${path}`
   }
-  // Otherwise, return as-is
-  return path
+  // For relative paths without leading slash, prepend base URL with /
+  return `${baseUrl}/${path}`
 }
 
 // Export API_BASE_URL for direct use if needed

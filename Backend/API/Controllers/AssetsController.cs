@@ -34,7 +34,7 @@ public class AssetsController : ControllerBase
     }
 
     /// <summary>
-    /// Get an asset by its ID (serves the file)
+    /// Get an asset by its ID (serves the file with Range request support for video streaming)
     /// </summary>
     /// <param name="fileId">The unique file ID</param>
     [AllowAnonymous]
@@ -53,6 +53,14 @@ public class AssetsController : ControllerBase
             if (stream == null)
             {
                 return NotFound("Asset not found");
+            }
+
+            // Enable range requests for video streaming (seeking support)
+            var isVideo = contentType?.StartsWith("video/") == true;
+            if (isVideo)
+            {
+                // Return file with EnableRangeProcessing for video seeking support
+                return File(stream, contentType!, fileName, enableRangeProcessing: true);
             }
 
             // Return the file with appropriate content type
