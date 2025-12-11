@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Pickleball.College.Models.Entities;
 
@@ -18,7 +19,7 @@ public class TrainingSession
     public int DurationMinutes { get; set; }
     public decimal Price { get; set; }
 
-    // Status: Pending, Confirmed, Completed, Cancelled
+    // Status: Pending, PendingStudentApproval, Confirmed, Completed, Cancelled
     public string Status { get; set; } = "Pending";
 
     public string? MeetingLink { get; set; }
@@ -30,13 +31,21 @@ public class TrainingSession
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Coach proposal fields (for counter-proposals)
+    // NOTE: These are NotMapped until Migration_011_SessionProposals.sql is run
+    // After running the migration, remove the [NotMapped] attributes
+    [NotMapped]
     public DateTime? ProposedScheduledAt { get; set; }
+    [NotMapped]
     public int? ProposedDurationMinutes { get; set; }
+    [NotMapped]
     public decimal? ProposedPrice { get; set; }
+    [NotMapped]
     [MaxLength(200)]
     public string? ProposedLocation { get; set; }
+    [NotMapped]
     [MaxLength(500)]
     public string? ProposalNote { get; set; }
+    [NotMapped]
     public DateTime? ProposedAt { get; set; }
 
     public User Coach { get; set; } = null!;
