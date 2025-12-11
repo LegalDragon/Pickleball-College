@@ -391,49 +391,120 @@ const CourseCard = ({ course, rating, onPurchase }) => (
 )
 
 // Material Card
-const MaterialCard = ({ material, rating, onPurchase }) => (
-  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-    {material.hasPurchased && (
-      <div className="bg-green-50 px-3 py-2 flex items-center gap-1 text-green-700 text-xs font-medium">
-        <CheckCircle className="w-3 h-3" />
-        Purchased
-      </div>
-    )}
-    <div className="p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <Video className="w-5 h-5 text-gray-400" />
-        <span className="text-xs text-gray-500 uppercase">{material.contentType}</span>
-      </div>
-      <h3 className="font-semibold text-gray-900 mb-2">{material.title}</h3>
-      <p className="text-sm text-gray-600 line-clamp-2 mb-3">{material.description}</p>
+const MaterialCard = ({ material, rating, onPurchase }) => {
+  const [showContent, setShowContent] = useState(false)
 
-      <div className="flex items-center gap-2 mb-3">
-        <StarRating rating={rating?.averageRating || 0} size={14} />
-        <span className="text-sm text-gray-500">
-          ({rating?.totalRatings || 0} reviews)
-        </span>
-      </div>
+  const hasVideo = material.videoUrl
+  const hasExternalLink = material.externalLink
 
-      <div className="flex items-center justify-between">
-        <span className="text-lg font-bold text-primary-600">
-          ${material.price?.toFixed(2)}
-        </span>
-        {material.hasPurchased ? (
-          <span className="px-4 py-2 bg-green-100 text-green-700 text-sm rounded-lg font-medium">
-            Owned
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+      {material.hasPurchased && (
+        <div className="bg-green-50 px-3 py-2 flex items-center gap-1 text-green-700 text-xs font-medium">
+          <CheckCircle className="w-3 h-3" />
+          Purchased
+        </div>
+      )}
+      <div className="p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Video className="w-5 h-5 text-gray-400" />
+          <span className="text-xs text-gray-500 uppercase">{material.contentType}</span>
+        </div>
+        <h3 className="font-semibold text-gray-900 mb-2">{material.title}</h3>
+        <p className="text-sm text-gray-600 line-clamp-2 mb-3">{material.description}</p>
+
+        <div className="flex items-center gap-2 mb-3">
+          <StarRating rating={rating?.averageRating || 0} size={14} />
+          <span className="text-sm text-gray-500">
+            ({rating?.totalRatings || 0} reviews)
           </span>
-        ) : (
-          <button
-            onClick={onPurchase}
-            className="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors"
-          >
-            Purchase
-          </button>
-        )}
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-lg font-bold text-primary-600">
+            ${material.price?.toFixed(2)}
+          </span>
+          {material.hasPurchased ? (
+            <button
+              onClick={() => setShowContent(true)}
+              className="px-4 py-2 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 transition-colors flex items-center gap-1"
+            >
+              <Video className="w-4 h-4" />
+              View Content
+            </button>
+          ) : (
+            <button
+              onClick={onPurchase}
+              className="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors"
+            >
+              Purchase
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Content Viewer Modal for owned materials */}
+      {showContent && material.hasPurchased && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">{material.title}</h3>
+              <button
+                onClick={() => setShowContent(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
+              {hasVideo && (
+                <div className="mb-4">
+                  <video
+                    controls
+                    className="w-full rounded-lg bg-black"
+                    src={getAssetUrl(material.videoUrl)}
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              )}
+
+              {hasExternalLink && (
+                <div className="mb-4">
+                  <a
+                    href={material.externalLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <ExternalLink className="w-5 h-5" />
+                    <span>Open External Content</span>
+                  </a>
+                </div>
+              )}
+
+              {!hasVideo && !hasExternalLink && (
+                <div className="text-center py-8 text-gray-500">
+                  <Video className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p>No video or content available for this material.</p>
+                </div>
+              )}
+
+              <div className="mt-4 pt-4 border-t">
+                <h4 className="font-medium text-gray-900 mb-2">Description</h4>
+                <p className="text-gray-600">{material.description}</p>
+              </div>
+
+              <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
+                <span>Coach: {material.coach?.firstName} {material.coach?.lastName}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  </div>
-)
+  )
+}
 
 // Coach Card
 const CoachCard = ({ coach, rating, onRequestSession }) => (
