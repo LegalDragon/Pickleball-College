@@ -141,10 +141,10 @@ export const AuthProvider = ({ children }) => {
 
 
       // Check for user existence errors in the error message
-      const errorMessage = error || error.message || error.response?.data?.message ||
+      const errorMessage = error.message || error.response?.data?.message ||
         error.response?.data?.error || 'Registration failed. Please try again.'
 
-      const lowerErrorMessage = errorMessage.toLowerCase()
+      const lowerErrorMessage = (typeof errorMessage === 'string' ? errorMessage : String(errorMessage)).toLowerCase()
 
       if (lowerErrorMessage.includes('already exists') ||
         lowerErrorMessage.includes('already registered') ||
