@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://localhost:7009/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 // Helper function to get full asset URL (for avatars, images, videos, etc.)
 export const getAssetUrl = (path) => {
