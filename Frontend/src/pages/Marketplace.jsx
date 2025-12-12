@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { materialApi, courseApi, ratingApi, coachApi, videoReviewApi, sessionApi, assetApi, tagApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Search, Filter, Play, DollarSign, BookOpen, Video, Users, Upload, Clock, X, Loader2, Eye, Tag, ExternalLink } from 'lucide-react'
+import { Search, Filter, Play, DollarSign, BookOpen, Video, Users, Upload, Clock, X, Loader2, Eye, Tag, ExternalLink, Star, ChevronDown, ChevronUp } from 'lucide-react'
 import StarRating from '../components/StarRating'
 import MockPaymentModal from '../components/MockPaymentModal'
 
@@ -18,6 +18,17 @@ const Marketplace = () => {
   const [activeTab, setActiveTab] = useState('courses') // 'courses', 'materials', 'coaches', or 'reviews'
   const { user } = useAuth()
   const navigate = useNavigate()
+
+  // Tags state for listings
+  const [courseTags, setCourseTags] = useState({})
+  const [materialTags, setMaterialTags] = useState({})
+  const [coachTags, setCoachTags] = useState({})
+
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false)
+  const [minRating, setMinRating] = useState(0)
+  const [filterTag, setFilterTag] = useState('')
+  const [allTags, setAllTags] = useState([])
 
   // Purchase modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -64,6 +75,18 @@ const Marketplace = () => {
         } catch (error) {
           console.error('Failed to load course ratings:', error)
         }
+
+        // Load tags for courses
+        try {
+          const courseTagsMap = {}
+          await Promise.all(coursesData.map(async (course) => {
+            const tags = await tagApi.getCommonTags('Course', course.id, 5)
+            courseTagsMap[course.id] = Array.isArray(tags) ? tags : []
+          }))
+          setCourseTags(courseTagsMap)
+        } catch (error) {
+          console.error('Failed to load course tags:', error)
+        }
       }
 
       // Load rating summaries for materials
@@ -74,6 +97,18 @@ const Marketplace = () => {
           setMaterialRatings(summaries || {})
         } catch (error) {
           console.error('Failed to load material ratings:', error)
+        }
+
+        // Load tags for materials
+        try {
+          const materialTagsMap = {}
+          await Promise.all(materialsData.map(async (material) => {
+            const tags = await tagApi.getCommonTags('Material', material.id, 5)
+            materialTagsMap[material.id] = Array.isArray(tags) ? tags : []
+          }))
+          setMaterialTags(materialTagsMap)
+        } catch (error) {
+          console.error('Failed to load material tags:', error)
         }
       }
 
@@ -86,7 +121,30 @@ const Marketplace = () => {
         } catch (error) {
           console.error('Failed to load coach ratings:', error)
         }
+
+        // Load tags for coaches
+        try {
+          const coachTagsMap = {}
+          await Promise.all(coachesData.map(async (coach) => {
+            const tags = await tagApi.getCommonTags('Coach', coach.id, 5)
+            coachTagsMap[coach.id] = Array.isArray(tags) ? tags : []
+          }))
+          setCoachTags(coachTagsMap)
+        } catch (error) {
+          console.error('Failed to load coach tags:', error)
+        }
       }
+
+      // Collect all unique tags for filter dropdown
+      const collectTags = (tagsMap) => {
+        const tagSet = new Set()
+        Object.values(tagsMap).forEach(tags => {
+          tags.forEach(tag => tagSet.add(tag.tagName || tag.name))
+        })
+        return tagSet
+      }
+
+      // We'll collect all tags after they're loaded
     } catch (error) {
       console.error('Failed to load marketplace data:', error)
     } finally {
@@ -94,25 +152,72 @@ const Marketplace = () => {
     }
   }
 
-  const filteredCourses = courses.filter(course =>
-    course.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.coach?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.coach?.lastName?.toLowerCase().includes(searchTerm.toLowerCase())
+  // Update allTags when tag maps change
+  useEffect(() => {
+    const tagSet = new Set()
+    Object.values(courseTags).forEach(tags => {
+      tags.forEach(tag => tagSet.add(tag.tagName || tag.name))
+    })
+    Object.values(materialTags).forEach(tags => {
+      tags.forEach(tag => tagSet.add(tag.tagName || tag.name))
+    })
+    Object.values(coachTags).forEach(tags => {
+      tags.forEach(tag => tagSet.add(tag.tagName || tag.name))
+    })
+    setAllTags(Array.from(tagSet).sort())
+  }, [courseTags, materialTags, coachTags])
+
+  // Filter function for items
+  const applyFilters = (items, ratingsMap, tagsMap) => {
+    return items.filter(item => {
+      // Rating filter
+      if (minRating > 0) {
+        const rating = ratingsMap[item.id]?.averageRating || 0
+        if (rating < minRating) return false
+      }
+      // Tag filter
+      if (filterTag) {
+        const itemTags = tagsMap[item.id] || []
+        const hasTag = itemTags.some(t =>
+          (t.tagName || t.name)?.toLowerCase() === filterTag.toLowerCase()
+        )
+        if (!hasTag) return false
+      }
+      return true
+    })
+  }
+
+  const filteredCourses = applyFilters(
+    courses.filter(course =>
+      course.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.coach?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.coach?.lastName?.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
+    courseRatings,
+    courseTags
   )
 
-  const filteredMaterials = materials.filter(material =>
-    material.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    material.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    material.coach?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    material.coach?.lastName?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredMaterials = applyFilters(
+    materials.filter(material =>
+      material.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      material.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      material.coach?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      material.coach?.lastName?.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
+    materialRatings,
+    materialTags
   )
 
-  const filteredCoaches = coaches.filter(coach =>
-    coach.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    coach.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    coach.bio?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    coach.coachProfile?.certificationLevel?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCoaches = applyFilters(
+    coaches.filter(coach =>
+      coach.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      coach.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      coach.bio?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      coach.coachProfile?.certificationLevel?.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
+    coachRatings,
+    coachTags
   )
 
   const handleRequestSession = (coach) => {
@@ -301,11 +406,87 @@ const Marketplace = () => {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
-            <button className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center justify-center px-4 py-2 border rounded-lg transition-colors ${
+                showFilters || minRating > 0 || filterTag
+                  ? 'border-primary-500 bg-primary-50 text-primary-600'
+                  : 'border-gray-300 hover:bg-gray-50'
+              }`}
+            >
               <Filter className="w-5 h-5 mr-2" />
               Filters
+              {(minRating > 0 || filterTag) && (
+                <span className="ml-2 bg-primary-500 text-white text-xs px-2 py-0.5 rounded-full">
+                  {(minRating > 0 ? 1 : 0) + (filterTag ? 1 : 0)}
+                </span>
+              )}
             </button>
           </div>
+
+          {/* Filter Panel */}
+          {showFilters && (
+            <div className="mt-4 p-4 bg-white rounded-lg shadow border border-gray-200">
+              <div className="flex flex-wrap gap-6">
+                {/* Rating Filter */}
+                <div className="flex-1 min-w-[200px]">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Star className="w-4 h-4 inline mr-1" />
+                    Minimum Rating
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {[0, 1, 2, 3, 4, 5].map((rating) => (
+                      <button
+                        key={rating}
+                        onClick={() => setMinRating(rating)}
+                        className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                          minRating === rating
+                            ? 'bg-primary-500 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {rating === 0 ? 'Any' : `${rating}+`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tag Filter */}
+                <div className="flex-1 min-w-[200px]">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Tag className="w-4 h-4 inline mr-1" />
+                    Filter by Tag
+                  </label>
+                  <select
+                    value={filterTag}
+                    onChange={(e) => setFilterTag(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  >
+                    <option value="">All Tags</option>
+                    {allTags.map((tag) => (
+                      <option key={tag} value={tag}>{tag}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Clear Filters */}
+                {(minRating > 0 || filterTag) && (
+                  <div className="flex items-end">
+                    <button
+                      onClick={() => {
+                        setMinRating(0)
+                        setFilterTag('')
+                      }}
+                      className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 flex items-center"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Clear Filters
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Courses Grid */}
@@ -314,6 +495,7 @@ const Marketplace = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredCourses.map((course) => {
                 const rating = courseRatings[course.id]
+                const tags = courseTags[course.id] || []
                 return (
                   <div
                     key={course.id}
@@ -359,6 +541,25 @@ const Marketplace = () => {
                           totalRatings={rating?.totalRatings}
                         />
                       </div>
+
+                      {/* Tags */}
+                      {tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {tags.slice(0, 3).map((tag, idx) => (
+                            <span
+                              key={tag.tagId || idx}
+                              className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs"
+                            >
+                              {tag.tagName || tag.name}
+                            </span>
+                          ))}
+                          {tags.length > 3 && (
+                            <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">
+                              +{tags.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
 
                       {/* Course Info */}
                       <div className="flex items-center justify-between mb-4">
@@ -416,6 +617,7 @@ const Marketplace = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredMaterials.map((material) => {
                 const rating = materialRatings[material.id]
+                const tags = materialTags[material.id] || []
                 return (
                   <div
                     key={material.id}
@@ -458,6 +660,25 @@ const Marketplace = () => {
                           totalRatings={rating?.totalRatings}
                         />
                       </div>
+
+                      {/* Tags */}
+                      {tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {tags.slice(0, 3).map((tag, idx) => (
+                            <span
+                              key={tag.tagId || idx}
+                              className="px-2 py-0.5 bg-primary-100 text-primary-700 rounded text-xs"
+                            >
+                              {tag.tagName || tag.name}
+                            </span>
+                          ))}
+                          {tags.length > 3 && (
+                            <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">
+                              +{tags.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center">
@@ -512,10 +733,12 @@ const Marketplace = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredCoaches.map((coach) => {
                 const rating = coachRatings[coach.id]
+                const tags = coachTags[coach.id] || []
                 return (
                   <div
                     key={coach.id}
-                    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                    onClick={() => navigate(`/coaches/${coach.id}`)}
                   >
                     <div className="p-6">
                       <div className="flex items-center gap-4 mb-4">
@@ -554,6 +777,25 @@ const Marketplace = () => {
                         />
                       </div>
 
+                      {/* Tags */}
+                      {tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-4">
+                          {tags.slice(0, 3).map((tag, idx) => (
+                            <span
+                              key={tag.tagId || idx}
+                              className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs"
+                            >
+                              {tag.tagName || tag.name}
+                            </span>
+                          ))}
+                          {tags.length > 3 && (
+                            <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">
+                              +{tags.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between mb-4">
                         {coach.coachProfile?.hourlyRate ? (
                           <span className="text-lg font-bold text-primary-600">
@@ -569,14 +811,20 @@ const Marketplace = () => {
 
                       <div className="flex gap-2">
                         <button
-                          onClick={() => navigate(`/coaches/${coach.id}`)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate(`/coaches/${coach.id}`)
+                          }}
                           className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center"
                         >
                           <Eye className="w-4 h-4 mr-2" />
                           View Profile
                         </button>
                         <button
-                          onClick={() => handleRequestSession(coach)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleRequestSession(coach)
+                          }}
                           disabled={!user}
                           className="flex-1 bg-primary-500 text-white py-2 px-4 rounded-lg hover:bg-primary-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                         >
