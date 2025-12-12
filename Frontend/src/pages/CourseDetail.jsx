@@ -33,6 +33,15 @@ const getEmbedUrl = (url) => {
   return null
 }
 
+// Check if URL is likely a video file
+const isVideoUrl = (url) => {
+  if (!url) return false
+  // Check for common video extensions or API video paths
+  return /\.(mp4|webm|ogg|mov|avi|mkv)(\?|$)/i.test(url) ||
+         url.includes('/api/assets/') ||
+         url.includes('/videos/')
+}
+
 const CourseDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -293,7 +302,7 @@ const CourseDetail = () => {
                       </div>
                     )
                   ) : selectedMaterial.material?.externalLink ? (
-                    // Check if external link is embeddable video
+                    // Check if external link is embeddable video (YouTube/Vimeo)
                     getEmbedUrl(selectedMaterial.material.externalLink) ? (
                       <div className="aspect-video bg-black rounded-t-lg">
                         <iframe
@@ -304,17 +313,39 @@ const CourseDetail = () => {
                           title={selectedMaterial.material?.title}
                         />
                       </div>
+                    ) : isVideoUrl(selectedMaterial.material.externalLink) ? (
+                      // Play as direct video if it looks like a video URL
+                      <div className="aspect-video bg-black rounded-t-lg">
+                        <video
+                          src={getAssetUrl(selectedMaterial.material.externalLink)}
+                          controls
+                          className="w-full h-full rounded-t-lg"
+                        />
+                      </div>
                     ) : (
-                      <div className="aspect-video bg-gray-100 rounded-t-lg flex items-center justify-center">
-                        <a
-                          href={selectedMaterial.material.externalLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                        >
-                          <ExternalLink className="w-5 h-5 mr-2" />
-                          Open External Content
-                        </a>
+                      // Fallback for non-video external links - try to play as video first
+                      <div className="aspect-video bg-black rounded-t-lg relative">
+                        <video
+                          src={getAssetUrl(selectedMaterial.material.externalLink)}
+                          controls
+                          className="w-full h-full rounded-t-lg"
+                          onError={(e) => {
+                            // If video fails to load, show link instead
+                            e.target.style.display = 'none'
+                            if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'
+                          }}
+                        />
+                        <div className="hidden bg-gray-100 rounded-t-lg items-center justify-center absolute inset-0">
+                          <a
+                            href={selectedMaterial.material.externalLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                          >
+                            <ExternalLink className="w-5 h-5 mr-2" />
+                            Open External Content
+                          </a>
+                        </div>
                       </div>
                     )
                   ) : (
