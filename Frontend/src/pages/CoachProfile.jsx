@@ -98,15 +98,13 @@ const CoachProfile = () => {
           }
 
           // Check materials from this coach if no course purchased yet
+          // Use getMaterials which returns hasPurchased flag for each material
           if (!hasPurchased) {
-            const coachMaterials = await materialApi.getCoachMaterials(id)
-            const materials = Array.isArray(coachMaterials) ? coachMaterials : (coachMaterials?.data || [])
-            for (const material of materials) {
-              if (material.hasPurchased) {
-                hasPurchased = true
-                break
-              }
-            }
+            const allMaterials = await materialApi.getMaterials()
+            const materialsArray = Array.isArray(allMaterials) ? allMaterials : (allMaterials?.data || [])
+            // Filter materials by this coach and check if any are purchased
+            const coachMaterials = materialsArray.filter(m => m.coachId === parseInt(id) || m.coach?.id === parseInt(id))
+            hasPurchased = coachMaterials.some(m => m.hasPurchased === true)
           }
 
           setHasPurchasedFromCoach(hasPurchased)

@@ -76,11 +76,11 @@ const Marketplace = () => {
           console.error('Failed to load course ratings:', error)
         }
 
-        // Load tags for courses
+        // Load tags for courses (top 10)
         try {
           const courseTagsMap = {}
           await Promise.all(coursesData.map(async (course) => {
-            const tags = await tagApi.getCommonTags('Course', course.id, 5)
+            const tags = await tagApi.getCommonTags('Course', course.id, 10)
             courseTagsMap[course.id] = Array.isArray(tags) ? tags : []
           }))
           setCourseTags(courseTagsMap)
@@ -99,11 +99,11 @@ const Marketplace = () => {
           console.error('Failed to load material ratings:', error)
         }
 
-        // Load tags for materials
+        // Load tags for materials (top 10)
         try {
           const materialTagsMap = {}
           await Promise.all(materialsData.map(async (material) => {
-            const tags = await tagApi.getCommonTags('Material', material.id, 5)
+            const tags = await tagApi.getCommonTags('Material', material.id, 10)
             materialTagsMap[material.id] = Array.isArray(tags) ? tags : []
           }))
           setMaterialTags(materialTagsMap)
@@ -122,11 +122,11 @@ const Marketplace = () => {
           console.error('Failed to load coach ratings:', error)
         }
 
-        // Load tags for coaches
+        // Load tags for coaches (top 10)
         try {
           const coachTagsMap = {}
           await Promise.all(coachesData.map(async (coach) => {
-            const tags = await tagApi.getCommonTags('Coach', coach.id, 5)
+            const tags = await tagApi.getCommonTags('Coach', coach.id, 10)
             coachTagsMap[coach.id] = Array.isArray(tags) ? tags : []
           }))
           setCoachTags(coachTagsMap)
