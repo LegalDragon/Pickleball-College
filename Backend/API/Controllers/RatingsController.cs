@@ -49,8 +49,7 @@ public class RatingsController : ControllerBase
         if (userId == null) return Unauthorized();
 
         var rating = await _ratingService.GetUserRatingAsync(userId.Value, ratableType, ratableId);
-        if (rating == null) return NotFound();
-
+        // Return null instead of 404 when no rating exists yet - this is a valid state
         return Ok(rating);
     }
 
