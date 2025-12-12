@@ -114,15 +114,15 @@ export const authApi = {
     api.post('/auth/register', userData),
 
   forgotPassword: (email) => {
-    return axios.post('/api/auth/forgot-password', { email })
+    return api.post('/auth/forgot-password', { email })
   },
-  
+
   resetPassword: (token, newPassword) => {
-    return axios.post('/api/auth/reset-password', { token, newPassword })
+    return api.post('/auth/reset-password', { token, newPassword })
   },
-  
+
   verifyResetToken: (token) => {
-    return axios.get(`/api/auth/verify-reset-token/${token}`)
+    return api.get(`/auth/verify-reset-token/${token}`)
   }
 
 }
