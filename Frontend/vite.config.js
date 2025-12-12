@@ -1,22 +1,24 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { fileURLToPath, URL } from 'url'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { fileURLToPath, URL } from "url";
 
 export default defineConfig({
-  base: '/',
-  plugins: [react()],
+  base: "/",
+  plugins: [
+    VitePWA({
+      registerType: "autoUpdate",
+    }),
+    react(),
+  ],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-      '@public': fileURLToPath(new URL('./public', import.meta.url))
-    }
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@public": fileURLToPath(new URL("./public", import.meta.url)),
+    },
   },
-  publicDir: 'public',
-  envDir: './src', // Look for .env files in src directory
+  publicDir: "public",
+  envDir: "./src", // Look for .env files in src directory
   server: {
-    port: 3000
-  }
-})
-
-
-
+    port: 3000,
+  },
+});
