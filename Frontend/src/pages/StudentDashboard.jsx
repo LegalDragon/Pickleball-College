@@ -390,44 +390,98 @@ const CourseCard = ({ course, rating, onPurchase }) => (
   </div>
 )
 
-// Material Card
+// Material Card - Detailed view matching MaterialDetail page
 const MaterialCard = ({ material, rating, onPurchase }) => {
   const [showContent, setShowContent] = useState(false)
 
   const hasVideo = material.videoUrl
   const hasExternalLink = material.externalLink
 
+  const getContentTypeIcon = (type) => {
+    switch (type) {
+      case 'Video': return <Video className="w-5 h-5" />
+      case 'Image': return <BookOpen className="w-5 h-5" />
+      case 'Document': return <BookOpen className="w-5 h-5" />
+      case 'Link': return <ExternalLink className="w-5 h-5" />
+      default: return <Video className="w-5 h-5" />
+    }
+  }
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-      {material.hasPurchased && (
-        <div className="bg-green-50 px-3 py-2 flex items-center gap-1 text-green-700 text-xs font-medium">
-          <CheckCircle className="w-3 h-3" />
-          Purchased
+      {/* Header */}
+      <div className="p-4 border-b border-gray-100">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <h3 className="font-semibold text-gray-900 text-lg">{material.title}</h3>
+            <div className="flex items-center mt-1 text-sm text-gray-500">
+              {getContentTypeIcon(material.contentType)}
+              <span className="ml-2 capitalize">
+                {material.contentType || 'Unknown'}
+              </span>
+              <span className="mx-2">•</span>
+              <span className="font-semibold text-primary-600">
+                ${(material.price ?? 0).toFixed(2)}
+              </span>
+            </div>
+          </div>
+          {material.hasPurchased && (
+            <span className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+              <CheckCircle className="w-3 h-3" />
+              Purchased
+            </span>
+          )}
         </div>
-      )}
+      </div>
+
+      {/* Content */}
       <div className="p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Video className="w-5 h-5 text-gray-400" />
-          <span className="text-xs text-gray-500 uppercase">{material.contentType}</span>
-        </div>
-        <h3 className="font-semibold text-gray-900 mb-2">{material.title}</h3>
-        <p className="text-sm text-gray-600 line-clamp-2 mb-3">{material.description}</p>
-
-        <div className="flex items-center gap-2 mb-3">
-          <StarRating rating={rating?.averageRating || 0} size={14} />
-          <span className="text-sm text-gray-500">
-            ({rating?.totalRatings || 0} reviews)
-          </span>
+        {/* Description */}
+        <div className="mb-4">
+          <p className="text-sm text-gray-600 line-clamp-3">{material.description || 'No description'}</p>
         </div>
 
-        <div className="flex items-center justify-between">
-          <span className="text-lg font-bold text-primary-600">
-            ${material.price?.toFixed(2)}
-          </span>
+        {/* Coach Info */}
+        {material.coach && (
+          <div className="flex items-center gap-2 mb-4 text-sm text-gray-500">
+            {material.coach.profileImageUrl ? (
+              <img
+                src={getAssetUrl(material.coach.profileImageUrl)}
+                alt={`${material.coach.firstName} ${material.coach.lastName}`}
+                className="w-6 h-6 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-primary-100 flex items-center justify-center">
+                <Users className="w-3 h-3 text-primary-600" />
+              </div>
+            )}
+            <span>By {material.coach.firstName} {material.coach.lastName}</span>
+          </div>
+        )}
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <div className="bg-gray-50 p-2 rounded-lg">
+            <p className="text-xs text-gray-500">Rating</p>
+            <div className="flex items-center">
+              <StarRating rating={rating?.averageRating || 0} size={12} />
+              <span className="ml-1 text-sm font-medium text-gray-900">
+                {rating?.averageRating?.toFixed(1) || '0.0'}
+              </span>
+            </div>
+          </div>
+          <div className="bg-gray-50 p-2 rounded-lg">
+            <p className="text-xs text-gray-500">Reviews</p>
+            <p className="text-sm font-medium text-gray-900">{rating?.totalRatings || 0}</p>
+          </div>
+        </div>
+
+        {/* Action Button */}
+        <div className="pt-3 border-t border-gray-100">
           {material.hasPurchased ? (
             <button
               onClick={() => setShowContent(true)}
-              className="px-4 py-2 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 transition-colors flex items-center gap-1"
+              className="w-full px-4 py-2.5 bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
             >
               <Video className="w-4 h-4" />
               View Content
@@ -435,9 +489,10 @@ const MaterialCard = ({ material, rating, onPurchase }) => {
           ) : (
             <button
               onClick={onPurchase}
-              className="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors"
+              className="w-full px-4 py-2.5 bg-primary-500 text-white text-sm font-medium rounded-lg hover:bg-primary-600 transition-colors flex items-center justify-center gap-2"
             >
-              Purchase
+              <ShoppingBag className="w-4 h-4" />
+              Purchase for ${(material.price ?? 0).toFixed(2)}
             </button>
           )}
         </div>
@@ -448,10 +503,16 @@ const MaterialCard = ({ material, rating, onPurchase }) => {
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">{material.title}</h3>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{material.title}</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {getContentTypeIcon(material.contentType)}
+                  <span className="ml-1 capitalize">{material.contentType}</span>
+                </p>
+              </div>
               <button
                 onClick={() => setShowContent(false)}
-                className="p-1 hover:bg-gray-100 rounded"
+                className="p-2 hover:bg-gray-100 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -492,12 +553,37 @@ const MaterialCard = ({ material, rating, onPurchase }) => {
 
               <div className="mt-4 pt-4 border-t">
                 <h4 className="font-medium text-gray-900 mb-2">Description</h4>
-                <p className="text-gray-600">{material.description}</p>
+                <p className="text-gray-600 whitespace-pre-wrap">{material.description}</p>
               </div>
 
-              <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
-                <span>Coach: {material.coach?.firstName} {material.coach?.lastName}</span>
+              {/* Stats in modal */}
+              <div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-500">Price</p>
+                  <p className="text-lg font-bold text-primary-600">${(material.price ?? 0).toFixed(2)}</p>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-500">Rating</p>
+                  <div className="flex items-center">
+                    <StarRating rating={rating?.averageRating || 0} size={14} />
+                    <span className="ml-1 text-sm font-medium">{rating?.averageRating?.toFixed(1) || '0.0'}</span>
+                  </div>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-500">Reviews</p>
+                  <p className="text-lg font-bold text-gray-900">{rating?.totalRatings || 0}</p>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-500">Type</p>
+                  <p className="text-sm font-medium text-gray-900 capitalize">{material.contentType}</p>
+                </div>
               </div>
+
+              {material.coach && (
+                <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
+                  <span>Coach: {material.coach.firstName} {material.coach.lastName}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
