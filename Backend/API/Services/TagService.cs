@@ -30,6 +30,7 @@ public class TagService : ITagService
                 TagName = ot.Tag.Name,
                 ObjectType = ot.ObjectType,
                 ObjectId = ot.ObjectId,
+                UserId = ot.CreatedByUserId,
                 CreatedAt = ot.CreatedAt
             })
             .ToListAsync();
@@ -57,24 +58,32 @@ public class TagService : ITagService
             await _context.SaveChangesAsync();
         }
 
-        // Check if this tag is already applied to the object
-        var existingObjectTag = await _context.ObjectTags
+        // Check if THIS USER has already applied this tag to this object
+        var existingUserTag = await _context.ObjectTags
             .FirstOrDefaultAsync(ot =>
                 ot.TagId == tagDefinition.Id &&
                 ot.ObjectType == request.ObjectType &&
-                ot.ObjectId == request.ObjectId);
+                ot.ObjectId == request.ObjectId &&
+                ot.CreatedByUserId == userId);
 
-        if (existingObjectTag != null)
+        if (existingUserTag != null)
         {
-            // Return existing tag instead of creating duplicate
+            // Update the date and return existing tag
+            existingUserTag.CreatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Tag '{TagName}' updated for {ObjectType} {ObjectId} by user {UserId}",
+                normalizedTagName, request.ObjectType, request.ObjectId, userId);
+
             return new ObjectTagDto
             {
-                Id = existingObjectTag.Id,
-                TagId = existingObjectTag.TagId,
+                Id = existingUserTag.Id,
+                TagId = existingUserTag.TagId,
                 TagName = tagDefinition.Name,
-                ObjectType = existingObjectTag.ObjectType,
-                ObjectId = existingObjectTag.ObjectId,
-                CreatedAt = existingObjectTag.CreatedAt
+                ObjectType = existingUserTag.ObjectType,
+                ObjectId = existingUserTag.ObjectId,
+                UserId = existingUserTag.CreatedByUserId,
+                CreatedAt = existingUserTag.CreatedAt
             };
         }
 
@@ -101,28 +110,32 @@ public class TagService : ITagService
             TagName = tagDefinition.Name,
             ObjectType = objectTag.ObjectType,
             ObjectId = objectTag.ObjectId,
+            UserId = objectTag.CreatedByUserId,
             CreatedAt = objectTag.CreatedAt
         };
     }
 
-    public async Task<bool> RemoveTagAsync(string objectType, int objectId, int tagId)
+    public async Task<bool> RemoveTagAsync(int userId, string objectType, int objectId, int tagId)
     {
+        // Find the tag link created by this user
         var objectTag = await _context.ObjectTags
             .FirstOrDefaultAsync(ot =>
                 ot.ObjectType == objectType &&
                 ot.ObjectId == objectId &&
-                ot.TagId == tagId);
+                ot.TagId == tagId &&
+                ot.CreatedByUserId == userId);
 
         if (objectTag == null)
         {
+            // User doesn't own this tag link
             return false;
         }
 
         _context.ObjectTags.Remove(objectTag);
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Tag {TagId} removed from {ObjectType} {ObjectId}",
-            tagId, objectType, objectId);
+        _logger.LogInformation("Tag {TagId} removed from {ObjectType} {ObjectId} by user {UserId}",
+            tagId, objectType, objectId, userId);
 
         return true;
     }

@@ -49,14 +49,17 @@ public class TagsController : ControllerBase
     }
 
     /// <summary>
-    /// Remove a tag from an object
+    /// Remove a tag from an object (only if user created it)
     /// </summary>
     [HttpDelete("{objectType}/{objectId}/{tagId}")]
     [Authorize]
     public async Task<ActionResult> RemoveTag(string objectType, int objectId, int tagId)
     {
-        var removed = await _tagService.RemoveTagAsync(objectType, objectId, tagId);
-        if (!removed) return NotFound();
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var removed = await _tagService.RemoveTagAsync(userId.Value, objectType, objectId, tagId);
+        if (!removed) return NotFound(new { message = "Tag not found or you don't have permission to remove it" });
 
         return NoContent();
     }

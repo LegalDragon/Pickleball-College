@@ -15,6 +15,7 @@ public class ObjectTagDto
     public string TagName { get; set; } = string.Empty;
     public string ObjectType { get; set; } = string.Empty;
     public int ObjectId { get; set; }
+    public int? UserId { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
