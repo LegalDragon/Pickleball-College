@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { coachApi, ratingApi, tagApi, sessionApi, getAssetUrl } from '../services/api'
+import { coachApi, ratingApi, tagApi, sessionApi, courseApi, materialApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import {
   Users, ArrowLeft, Star, Tag, ChevronDown, ChevronUp, Plus, X,
@@ -16,6 +16,7 @@ const CoachProfile = () => {
   const [coach, setCoach] = useState(null)
   const [loading, setLoading] = useState(true)
   const [hasHadSession, setHasHadSession] = useState(false)
+  const [hasPurchasedFromCoach, setHasPurchasedFromCoach] = useState(false)
 
   // Ratings state
   const [ratingSummary, setRatingSummary] = useState(null)
@@ -62,10 +63,12 @@ const CoachProfile = () => {
       }
       setCoach(data)
 
-      // Check if user has had a session with this coach
+      // Check if user has had a session with this coach or purchased from them
       if (user) {
+        // Check sessions
         try {
-          const sessions = await sessionApi.getMySessions()
+          const sessionsResponse = await sessionApi.getStudentSessions()
+          const sessions = Array.isArray(sessionsResponse) ? sessionsResponse : (sessionsResponse?.data || [])
           const hadSession = sessions.some(s =>
             s.coachId === parseInt(id) &&
             (s.status === 'Completed' || s.status === 'Confirmed')
@@ -73,6 +76,42 @@ const CoachProfile = () => {
           setHasHadSession(hadSession)
         } catch (e) {
           console.error('Error checking sessions:', e)
+        }
+
+        // Check if purchased any courses or materials from this coach
+        try {
+          let hasPurchased = false
+
+          // Check courses from this coach
+          const coachCourses = await courseApi.getCoachCourses(id)
+          const courses = Array.isArray(coachCourses) ? coachCourses : (coachCourses?.data || [])
+          for (const course of courses) {
+            try {
+              const purchased = await courseApi.hasPurchased(course.id)
+              if (purchased?.hasPurchased || purchased === true) {
+                hasPurchased = true
+                break
+              }
+            } catch (e) {
+              // Course not purchased or error
+            }
+          }
+
+          // Check materials from this coach if no course purchased yet
+          if (!hasPurchased) {
+            const coachMaterials = await materialApi.getCoachMaterials(id)
+            const materials = Array.isArray(coachMaterials) ? coachMaterials : (coachMaterials?.data || [])
+            for (const material of materials) {
+              if (material.hasPurchased) {
+                hasPurchased = true
+                break
+              }
+            }
+          }
+
+          setHasPurchasedFromCoach(hasPurchased)
+        } catch (e) {
+          console.error('Error checking purchases:', e)
         }
       }
     } catch (error) {
@@ -212,7 +251,7 @@ const CoachProfile = () => {
     )
   }
 
-  const canRateAndTag = hasHadSession && user && user.id !== coach.id
+  const canRateAndTag = (hasHadSession || hasPurchasedFromCoach) && user && user.id !== coach.id
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -387,10 +426,10 @@ const CoachProfile = () => {
               </div>
             )}
 
-            {/* Info for users who haven't had a session */}
+            {/* Info for users who haven't had a session or purchased */}
             {user && !canRateAndTag && user.id !== coach.id && (
               <div className="mb-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
-                Complete a session with this coach to leave a rating.
+                Complete a session or purchase a course/material from this coach to leave a rating.
               </div>
             )}
 
