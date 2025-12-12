@@ -569,7 +569,7 @@ const Marketplace = () => {
 
                       <div className="flex gap-2">
                         <button
-                          onClick={(e) => handleViewItem(e, coach, 'Coach', rating)}
+                          onClick={() => navigate(`/coaches/${coach.id}`)}
                           className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center"
                         >
                           <Eye className="w-4 h-4 mr-2" />
@@ -711,6 +711,8 @@ const Marketplace = () => {
               navigate(`/courses/${previewItem.id}`)
             } else if (previewItem.type === 'Material') {
               navigate(`/coach/materials/${previewItem.id}`)
+            } else if (previewItem.type === 'Coach') {
+              navigate(`/coaches/${previewItem.id}`)
             }
           }}
         />
@@ -1272,15 +1274,13 @@ const PreviewModal = ({ item, tags, loadingTags, onClose, onNavigate }) => {
 
           {/* Action Button */}
           <div className="mt-6">
-            {item.type !== 'Coach' && (
-              <button
-                onClick={onNavigate}
-                className={`w-full ${getTypeColor()} text-white py-2 px-4 rounded-lg hover:opacity-90 transition-colors flex items-center justify-center`}
-              >
-                <Eye className="w-4 h-4 mr-2" />
-                Go to {item.type} Page
-              </button>
-            )}
+            <button
+              onClick={onNavigate}
+              className={`w-full ${getTypeColor()} text-white py-2 px-4 rounded-lg hover:opacity-90 transition-colors flex items-center justify-center`}
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Go to {item.type === 'Coach' ? 'Coach Profile' : `${item.type} Page`}
+            </button>
           </div>
         </div>
       </div>

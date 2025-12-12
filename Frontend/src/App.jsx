@@ -10,6 +10,7 @@ import MaterialDetail from './pages/MaterialDetail'
 import CourseCreator from './pages/CourseCreator'
 import CourseEditor from './pages/CourseEditor'
 import CourseDetail from './pages/CourseDetail'
+import CoachProfile from './pages/CoachProfile'
 import CoachDashboard from './pages/CoachDashboard'
 import StudentDashboard from './pages/StudentDashboard'
 import AdminDashboard from './pages/AdminDashboard' // Add this import
@@ -32,6 +33,7 @@ function App() {
       <Route path="/reset-password" element={<ResetPassword />} />
   <Route path="/Marketplace" element={<Marketplace />} />
       <Route path="/courses/:id" element={<CourseDetail />} />
+      <Route path="/coaches/:id" element={<CoachProfile />} />
      <Route path="/coach/materials/edit/:id" element={<EditMaterial />} />
 <Route path="/coach/materials/:id" element={<MaterialDetail />} /> {/* Optional */}
 
