@@ -10,7 +10,7 @@ export const getAssetUrl = (path) => {
     return path
   }
   // Get base URL without /api suffix for asset paths
-  const baseUrl = API_BASE_URL.replace(/\/api\/?$/, '')
+  const baseUrl = API_BASE_URL//.replace(/\/api\/?$/, '')
 
   // If path starts with /api, use the full API URL
   if (path.startsWith('/api/')) {
