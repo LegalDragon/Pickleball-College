@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
 // Helper function to get full asset URL (for avatars, images, videos, etc.)
 export const getAssetUrl = (path) => {
@@ -114,15 +114,15 @@ export const authApi = {
     api.post('/auth/register', userData),
 
   forgotPassword: (email) => {
-    return axios.post('/api/auth/forgot-password', { email })
+    return api.post('/auth/forgot-password', { email })
   },
-  
+
   resetPassword: (token, newPassword) => {
-    return axios.post('/api/auth/reset-password', { token, newPassword })
+    return api.post('/auth/reset-password', { token, newPassword })
   },
-  
+
   verifyResetToken: (token) => {
-    return axios.get(`/api/auth/verify-reset-token/${token}`)
+    return api.get(`/auth/verify-reset-token/${token}`)
   }
 
 }
