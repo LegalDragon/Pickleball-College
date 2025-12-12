@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { materialApi, courseApi, ratingApi, coachApi, videoReviewApi, sessionApi, assetApi, getAssetUrl } from '../services/api'
+import { materialApi, courseApi, ratingApi, coachApi, videoReviewApi, sessionApi, assetApi, tagApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Search, Filter, Play, DollarSign, BookOpen, Video, Users, Upload, Clock, X, Loader2 } from 'lucide-react'
+import { Search, Filter, Play, DollarSign, BookOpen, Video, Users, Upload, Clock, X, Loader2, Eye, Tag } from 'lucide-react'
 import StarRating from '../components/StarRating'
 import MockPaymentModal from '../components/MockPaymentModal'
 
@@ -29,6 +29,12 @@ const Marketplace = () => {
 
   // Video review modal state
   const [showVideoUploadModal, setShowVideoUploadModal] = useState(false)
+
+  // Preview modal state
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [previewItem, setPreviewItem] = useState(null)
+  const [previewTags, setPreviewTags] = useState([])
+  const [loadingTags, setLoadingTags] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -124,6 +130,23 @@ const Marketplace = () => {
       return
     }
     setShowVideoUploadModal(true)
+  }
+
+  const handleViewItem = async (e, item, type, rating) => {
+    e.stopPropagation()
+    setPreviewItem({ ...item, type, rating })
+    setShowPreviewModal(true)
+    setLoadingTags(true)
+    setPreviewTags([])
+
+    try {
+      const tags = await tagApi.getCommonTags(type, item.id, 10)
+      setPreviewTags(Array.isArray(tags) ? tags : [])
+    } catch (error) {
+      console.error('Failed to load tags:', error)
+    } finally {
+      setLoadingTags(false)
+    }
   }
 
   const handlePurchaseMaterial = (e, material) => {
@@ -312,9 +335,15 @@ const Marketplace = () => {
                       <div className="absolute top-4 left-4 bg-indigo-600 text-white px-2 py-1 rounded text-xs font-medium">
                         COURSE
                       </div>
-                      <div className="absolute top-4 right-4 bg-primary-500 text-white px-2 py-1 rounded text-sm font-medium">
-                        ${course.price?.toFixed(2) || '0.00'}
-                      </div>
+                      {course.hasPurchased ? (
+                        <div className="absolute top-4 right-4 bg-green-600 text-white px-2 py-1 rounded text-sm font-medium">
+                          OWNED
+                        </div>
+                      ) : (
+                        <div className="absolute top-4 right-4 bg-primary-500 text-white px-2 py-1 rounded text-sm font-medium">
+                          ${course.price?.toFixed(2) || '0.00'}
+                        </div>
+                      )}
                     </div>
 
                     <div className="p-6">
@@ -348,14 +377,24 @@ const Marketplace = () => {
                         </span>
                       </div>
 
-                      <button
-                        onClick={(e) => handlePurchaseCourse(e, course)}
-                        disabled={!user}
-                        className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                      >
-                        <DollarSign className="w-4 h-4 mr-2" />
-                        {user ? 'Enroll Now' : 'Login to Enroll'}
-                      </button>
+                      {course.hasPurchased ? (
+                        <button
+                          onClick={(e) => handleViewItem(e, course, 'Course', rating)}
+                          className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Course
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => handlePurchaseCourse(e, course)}
+                          disabled={!user}
+                          className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                        >
+                          <DollarSign className="w-4 h-4 mr-2" />
+                          {user ? 'Enroll Now' : 'Login to Enroll'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
@@ -395,9 +434,15 @@ const Marketplace = () => {
                           <Play className="w-12 h-12 text-primary-500" />
                         </div>
                       )}
-                      <div className="absolute top-4 right-4 bg-primary-500 text-white px-2 py-1 rounded text-sm font-medium">
-                        ${material.price}
-                      </div>
+                      {material.hasPurchased ? (
+                        <div className="absolute top-4 right-4 bg-green-600 text-white px-2 py-1 rounded text-sm font-medium">
+                          OWNED
+                        </div>
+                      ) : (
+                        <div className="absolute top-4 right-4 bg-primary-500 text-white px-2 py-1 rounded text-sm font-medium">
+                          ${material.price}
+                        </div>
+                      )}
                     </div>
 
                     <div className="p-6">
@@ -428,14 +473,24 @@ const Marketplace = () => {
                         <span className="text-sm text-gray-500 capitalize">{material.contentType}</span>
                       </div>
 
-                      <button
-                        onClick={(e) => handlePurchaseMaterial(e, material)}
-                        disabled={!user}
-                        className="w-full bg-primary-500 text-white py-2 px-4 rounded-lg hover:bg-primary-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                      >
-                        <DollarSign className="w-4 h-4 mr-2" />
-                        {user ? 'Purchase Now' : 'Login to Purchase'}
-                      </button>
+                      {material.hasPurchased ? (
+                        <button
+                          onClick={(e) => handleViewItem(e, material, 'Material', rating)}
+                          className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Material
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => handlePurchaseMaterial(e, material)}
+                          disabled={!user}
+                          className="w-full bg-primary-500 text-white py-2 px-4 rounded-lg hover:bg-primary-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                        >
+                          <DollarSign className="w-4 h-4 mr-2" />
+                          {user ? 'Purchase Now' : 'Login to Purchase'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
@@ -512,14 +567,23 @@ const Marketplace = () => {
                         </span>
                       </div>
 
-                      <button
-                        onClick={() => handleRequestSession(coach)}
-                        disabled={!user}
-                        className="w-full bg-primary-500 text-white py-2 px-4 rounded-lg hover:bg-primary-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                      >
-                        <Clock className="w-4 h-4 mr-2" />
-                        {user ? 'Request Session' : 'Login to Request'}
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => handleViewItem(e, coach, 'Coach', rating)}
+                          className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center"
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Profile
+                        </button>
+                        <button
+                          onClick={() => handleRequestSession(coach)}
+                          disabled={!user}
+                          className="flex-1 bg-primary-500 text-white py-2 px-4 rounded-lg hover:bg-primary-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                        >
+                          <Clock className="w-4 h-4 mr-2" />
+                          {user ? 'Request' : 'Login'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )
@@ -626,6 +690,28 @@ const Marketplace = () => {
           onSuccess={() => {
             setShowVideoUploadModal(false)
             alert('Video review request submitted! Check your dashboard to track its status.')
+          }}
+        />
+      )}
+
+      {/* Preview Modal */}
+      {showPreviewModal && previewItem && (
+        <PreviewModal
+          item={previewItem}
+          tags={previewTags}
+          loadingTags={loadingTags}
+          onClose={() => {
+            setShowPreviewModal(false)
+            setPreviewItem(null)
+            setPreviewTags([])
+          }}
+          onNavigate={() => {
+            setShowPreviewModal(false)
+            if (previewItem.type === 'Course') {
+              navigate(`/courses/${previewItem.id}`)
+            } else if (previewItem.type === 'Material') {
+              navigate(`/coach/materials/${previewItem.id}`)
+            }
           }}
         />
       )}
@@ -978,6 +1064,164 @@ const VideoUploadModal = ({ coaches, onClose, onSuccess }) => {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+// Preview Modal - shows item details with thumbnail, rating, and tags
+const PreviewModal = ({ item, tags, loadingTags, onClose, onNavigate }) => {
+  const getTypeColor = () => {
+    switch (item.type) {
+      case 'Course': return 'bg-indigo-600'
+      case 'Material': return 'bg-primary-500'
+      case 'Coach': return 'bg-green-600'
+      default: return 'bg-gray-500'
+    }
+  }
+
+  const getTypeIcon = () => {
+    switch (item.type) {
+      case 'Course': return <BookOpen className="w-6 h-6" />
+      case 'Material': return <Video className="w-6 h-6" />
+      case 'Coach': return <Users className="w-6 h-6" />
+      default: return null
+    }
+  }
+
+  const getThumbnail = () => {
+    if (item.type === 'Coach') {
+      return item.profileImageUrl
+    }
+    return item.thumbnailUrl
+  }
+
+  const getTitle = () => {
+    if (item.type === 'Coach') {
+      return `${item.firstName} ${item.lastName}`
+    }
+    return item.title
+  }
+
+  const getDescription = () => {
+    if (item.type === 'Coach') {
+      return item.bio || 'No bio available'
+    }
+    return item.description || 'No description available'
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+        {/* Header with thumbnail */}
+        <div className="relative h-48 bg-gray-200">
+          {getThumbnail() ? (
+            <img
+              src={getAssetUrl(getThumbnail())}
+              alt={getTitle()}
+              className={`w-full h-full ${item.type === 'Coach' ? 'object-contain' : 'object-cover'}`}
+            />
+          ) : (
+            <div className={`w-full h-full flex items-center justify-center ${getTypeColor()} bg-opacity-20`}>
+              <div className={`p-4 rounded-full ${getTypeColor()} text-white`}>
+                {getTypeIcon()}
+              </div>
+            </div>
+          )}
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 p-1 bg-white rounded-full shadow hover:bg-gray-100"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div className={`absolute top-3 left-3 ${getTypeColor()} text-white px-2 py-1 rounded text-xs font-medium`}>
+            {item.type.toUpperCase()}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-2">{getTitle()}</h3>
+
+          {/* Rating */}
+          <div className="flex items-center mb-4">
+            <StarRating
+              rating={item.rating?.averageRating || 0}
+              size={18}
+              showValue
+              totalRatings={item.rating?.totalRatings}
+            />
+          </div>
+
+          {/* Description */}
+          <p className="text-gray-600 mb-4 line-clamp-3">{getDescription()}</p>
+
+          {/* Additional Info */}
+          {item.type === 'Coach' && item.coachProfile?.certificationLevel && (
+            <p className="text-sm text-gray-500 mb-2">
+              Certification: {item.coachProfile.certificationLevel}
+            </p>
+          )}
+          {item.type === 'Coach' && item.coachProfile?.hourlyRate && (
+            <p className="text-lg font-bold text-primary-600 mb-4">
+              ${item.coachProfile.hourlyRate}/hr
+            </p>
+          )}
+          {(item.type === 'Course' || item.type === 'Material') && (
+            <p className="text-lg font-bold text-primary-600 mb-4">
+              ${item.price?.toFixed(2) || '0.00'}
+            </p>
+          )}
+          {item.type === 'Course' && (
+            <p className="text-sm text-gray-500 mb-4">
+              {item.materialCount || 0} lessons included
+            </p>
+          )}
+
+          {/* Tags Section */}
+          <div className="border-t pt-4">
+            <div className="flex items-center mb-3">
+              <Tag className="w-4 h-4 text-gray-500 mr-2" />
+              <span className="text-sm font-medium text-gray-700">Top Tags from Users</span>
+            </div>
+
+            {loadingTags ? (
+              <div className="flex items-center text-gray-500 text-sm">
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Loading tags...
+              </div>
+            ) : tags.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag, index) => (
+                  <span
+                    key={tag.id || index}
+                    className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm flex items-center"
+                  >
+                    {tag.name || tag.tagName}
+                    {tag.count > 1 && (
+                      <span className="ml-1 text-xs text-gray-500">({tag.count})</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No tags yet. Be the first to add a tag!</p>
+            )}
+          </div>
+
+          {/* Action Button */}
+          <div className="mt-6">
+            {item.type !== 'Coach' && (
+              <button
+                onClick={onNavigate}
+                className={`w-full ${getTypeColor()} text-white py-2 px-4 rounded-lg hover:opacity-90 transition-colors flex items-center justify-center`}
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Go to {item.type} Page
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )
