@@ -453,9 +453,9 @@ const CoachProfile = () => {
             </h2>
 
             {/* Tag Editor for Users who had sessions */}
-            {canRateAndTag && (
-              <div className="mb-6 p-4 bg-green-50 rounded-lg">
-                <h3 className="font-medium text-gray-900 mb-3">Add Your Tags</h3>
+            {canRateAndTag ? (
+              <div className="p-4 bg-green-50 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-3">Your Tags</h3>
 
                 {myTags.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-3">
@@ -494,29 +494,29 @@ const CoachProfile = () => {
                   </button>
                 </div>
               </div>
+            ) : (
+              /* Top Tags - only shown to users who haven't had sessions */
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Top Tags from Students</h3>
+                {tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map((tag, index) => (
+                      <span
+                        key={tag.id || index}
+                        className="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
+                      >
+                        {tag.name || tag.tagName}
+                        {tag.count > 1 && (
+                          <span className="ml-1 text-xs text-gray-500">({tag.count})</span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">No tags yet.</p>
+                )}
+              </div>
             )}
-
-            {/* Top Tags */}
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Top Tags from Students</h3>
-              {tags.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {tags.map((tag, index) => (
-                    <span
-                      key={tag.id || index}
-                      className="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
-                    >
-                      {tag.name || tag.tagName}
-                      {tag.count > 1 && (
-                        <span className="ml-1 text-xs text-gray-500">({tag.count})</span>
-                      )}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 text-sm">No tags yet.</p>
-              )}
-            </div>
           </div>
         </div>
       </div>

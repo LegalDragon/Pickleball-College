@@ -620,9 +620,9 @@ const CourseDetail = () => {
             </h2>
 
             {/* Tag Editor for Purchased Users */}
-            {hasPurchased && user && (
-              <div className="mb-6 p-4 bg-indigo-50 rounded-lg">
-                <h3 className="font-medium text-gray-900 mb-3">Add Your Tags</h3>
+            {hasPurchased && user ? (
+              <div className="p-4 bg-indigo-50 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-3">Your Tags</h3>
 
                 {/* User's tags */}
                 {myTags.length > 0 && (
@@ -663,29 +663,29 @@ const CourseDetail = () => {
                   </button>
                 </div>
               </div>
+            ) : (
+              /* Top Tags - only shown to non-purchased users */
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Top Tags from All Users</h3>
+                {tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map((tag, index) => (
+                      <span
+                        key={tag.id || index}
+                        className="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
+                      >
+                        {tag.name || tag.tagName}
+                        {tag.count > 1 && (
+                          <span className="ml-1 text-xs text-gray-500">({tag.count})</span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">No tags yet. Purchase to add tags.</p>
+                )}
+              </div>
             )}
-
-            {/* Top Tags */}
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Top Tags from All Users</h3>
-              {tags.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {tags.map((tag, index) => (
-                    <span
-                      key={tag.id || index}
-                      className="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
-                    >
-                      {tag.name || tag.tagName}
-                      {tag.count > 1 && (
-                        <span className="ml-1 text-xs text-gray-500">({tag.count})</span>
-                      )}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 text-sm">No tags yet. {hasPurchased ? 'Be the first to add a tag!' : 'Purchase to add tags.'}</p>
-              )}
-            </div>
           </div>
         </div>
       </div>
