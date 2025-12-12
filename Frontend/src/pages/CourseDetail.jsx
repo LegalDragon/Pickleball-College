@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { courseApi, getAssetUrl } from '../services/api'
+import { courseApi, ratingApi, tagApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import {
   BookOpen, Play, Lock, Check, DollarSign, ArrowLeft,
-  User, Clock, Video, ExternalLink, Loader2
+  User, Clock, Video, ExternalLink, Loader2, Star, Tag,
+  ChevronDown, ChevronUp, Plus, X, MessageSquare
 } from 'lucide-react'
 import StarRating from '../components/StarRating'
 import MockPaymentModal from '../components/MockPaymentModal'
@@ -53,9 +54,30 @@ const CourseDetail = () => {
   const [selectedMaterial, setSelectedMaterial] = useState(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
 
+  // Ratings state
+  const [ratingSummary, setRatingSummary] = useState(null)
+  const [ratings, setRatings] = useState([])
+  const [showAllRatings, setShowAllRatings] = useState(false)
+  const [myRating, setMyRating] = useState(null)
+  const [ratingStars, setRatingStars] = useState(0)
+  const [ratingReview, setRatingReview] = useState('')
+  const [submittingRating, setSubmittingRating] = useState(false)
+
+  // Tags state
+  const [tags, setTags] = useState([])
+  const [myTags, setMyTags] = useState([])
+  const [newTag, setNewTag] = useState('')
+  const [submittingTag, setSubmittingTag] = useState(false)
+
   useEffect(() => {
     loadCourse()
   }, [id, user])
+
+  useEffect(() => {
+    if (id) {
+      loadRatingsAndTags()
+    }
+  }, [id, hasPurchased, user])
 
   const loadCourse = async () => {
     try {
@@ -76,6 +98,89 @@ const CourseDetail = () => {
       console.error('Failed to load course:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadRatingsAndTags = async () => {
+    try {
+      // Load rating summary
+      const summary = await ratingApi.getSummary('Course', id)
+      setRatingSummary(summary)
+
+      // Load all ratings
+      const allRatings = await ratingApi.getRatings('Course', id)
+      setRatings(Array.isArray(allRatings) ? allRatings : [])
+
+      // Load top 10 tags
+      const topTags = await tagApi.getCommonTags('Course', id, 10)
+      setTags(Array.isArray(topTags) ? topTags : [])
+
+      // If user is logged in, load their rating and tags
+      if (user) {
+        try {
+          const myRatingData = await ratingApi.getMyRating('Course', id)
+          setMyRating(myRatingData)
+          if (myRatingData) {
+            setRatingStars(myRatingData.stars || 0)
+            setRatingReview(myRatingData.review || '')
+          }
+        } catch (e) {
+          // No rating yet
+        }
+
+        try {
+          const allTags = await tagApi.getTags('Course', id)
+          // Filter to only user's tags
+          const userTags = Array.isArray(allTags)
+            ? allTags.filter(t => t.userId === user.id)
+            : []
+          setMyTags(userTags)
+        } catch (e) {
+          console.error('Error loading user tags:', e)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load ratings/tags:', error)
+    }
+  }
+
+  const handleSubmitRating = async () => {
+    if (!ratingStars) {
+      alert('Please select a rating')
+      return
+    }
+    setSubmittingRating(true)
+    try {
+      await ratingApi.rate('Course', parseInt(id), ratingStars, ratingReview || null)
+      await loadRatingsAndTags()
+      alert('Rating submitted successfully!')
+    } catch (error) {
+      alert('Failed to submit rating: ' + (error.message || 'Unknown error'))
+    } finally {
+      setSubmittingRating(false)
+    }
+  }
+
+  const handleAddTag = async () => {
+    if (!newTag.trim()) return
+    setSubmittingTag(true)
+    try {
+      await tagApi.addTag('Course', parseInt(id), newTag.trim())
+      setNewTag('')
+      await loadRatingsAndTags()
+    } catch (error) {
+      alert('Failed to add tag: ' + (error.message || 'Unknown error'))
+    } finally {
+      setSubmittingTag(false)
+    }
+  }
+
+  const handleRemoveTag = async (tagId) => {
+    try {
+      await tagApi.removeTag('Course', parseInt(id), tagId)
+      await loadRatingsAndTags()
+    } catch (error) {
+      alert('Failed to remove tag: ' + (error.message || 'Unknown error'))
     }
   }
 
@@ -279,8 +384,22 @@ const CourseDetail = () => {
             <div className="bg-white rounded-lg shadow">
               {selectedMaterial ? (
                 <div>
-                  {/* Video Player or Content */}
-                  {selectedMaterial.material?.videoUrl ? (
+                  {/* Check if material is viewable */}
+                  {!canViewMaterial(selectedMaterial) ? (
+                    <div className="aspect-video bg-gray-100 rounded-t-lg flex items-center justify-center">
+                      <div className="text-center p-8">
+                        <Lock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-700 mb-2">Content Locked</h3>
+                        <p className="text-gray-500 mb-4">Content available when you purchase this course</p>
+                        <button
+                          onClick={handlePurchase}
+                          className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                        >
+                          Purchase to Unlock
+                        </button>
+                      </div>
+                    </div>
+                  ) : selectedMaterial.material?.videoUrl ? (
                     // Check if it's an embeddable URL (YouTube/Vimeo) or direct video
                     getEmbedUrl(selectedMaterial.material.videoUrl) ? (
                       <div className="aspect-video bg-black rounded-t-lg">
@@ -371,6 +490,200 @@ const CourseDetail = () => {
                     <p>Select a lesson to start learning</p>
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Ratings and Tags Section */}
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Ratings Section */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                <Star className="w-5 h-5 mr-2 text-yellow-500" />
+                Ratings & Reviews
+              </h2>
+              {ratingSummary && (
+                <div className="text-right">
+                  <div className="flex items-center">
+                    <span className="text-2xl font-bold text-gray-900 mr-2">
+                      {ratingSummary.averageRating?.toFixed(1) || '0.0'}
+                    </span>
+                    <StarRating rating={ratingSummary.averageRating || 0} size={18} />
+                  </div>
+                  <p className="text-sm text-gray-500">{ratingSummary.totalRatings || 0} reviews</p>
+                </div>
+              )}
+            </div>
+
+            {/* Rating Editor for Purchased Users */}
+            {hasPurchased && user && (
+              <div className="mb-6 p-4 bg-indigo-50 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-3">
+                  {myRating ? 'Update Your Rating' : 'Rate This Course'}
+                </h3>
+                <div className="mb-3">
+                  <div className="flex items-center gap-1 mb-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => setRatingStars(star)}
+                        className="focus:outline-none"
+                      >
+                        <Star
+                          className={`w-8 h-8 ${
+                            star <= ratingStars
+                              ? 'text-yellow-400 fill-yellow-400'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <textarea
+                  value={ratingReview}
+                  onChange={(e) => setRatingReview(e.target.value)}
+                  placeholder="Write your review (optional)"
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-3"
+                />
+                <button
+                  onClick={handleSubmitRating}
+                  disabled={submittingRating || !ratingStars}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center"
+                >
+                  {submittingRating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {myRating ? 'Update Rating' : 'Submit Rating'}
+                </button>
+              </div>
+            )}
+
+            {/* Reviews List */}
+            {ratings.length > 0 ? (
+              <div className="space-y-4">
+                {(showAllRatings ? ratings : ratings.slice(0, 3)).map((rating) => (
+                  <div key={rating.id} className="border-b border-gray-100 pb-4 last:border-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-2">
+                          <span className="text-sm font-medium text-gray-600">
+                            {rating.user?.firstName?.[0]}{rating.user?.lastName?.[0]}
+                          </span>
+                        </div>
+                        <span className="font-medium text-gray-900">
+                          {rating.user?.firstName} {rating.user?.lastName}
+                        </span>
+                      </div>
+                      <StarRating rating={rating.stars} size={14} />
+                    </div>
+                    {rating.review && (
+                      <p className="text-gray-600 text-sm">{rating.review}</p>
+                    )}
+                  </div>
+                ))}
+
+                {ratings.length > 3 && (
+                  <button
+                    onClick={() => setShowAllRatings(!showAllRatings)}
+                    className="flex items-center text-indigo-600 hover:text-indigo-700 text-sm font-medium"
+                  >
+                    {showAllRatings ? (
+                      <>
+                        <ChevronUp className="w-4 h-4 mr-1" />
+                        Show Less
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-4 h-4 mr-1" />
+                        Show All {ratings.length} Reviews
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-gray-500">
+                <MessageSquare className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                <p>No reviews yet</p>
+                {hasPurchased && <p className="text-sm">Be the first to review this course!</p>}
+              </div>
+            )}
+          </div>
+
+          {/* Tags Section */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+              <Tag className="w-5 h-5 mr-2 text-indigo-500" />
+              Tags
+            </h2>
+
+            {/* Tag Editor for Purchased Users */}
+            {hasPurchased && user && (
+              <div className="mb-6 p-4 bg-indigo-50 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-3">Add Your Tags</h3>
+
+                {/* User's tags */}
+                {myTags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {myTags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="inline-flex items-center px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm"
+                      >
+                        {tag.tagName || tag.name}
+                        <button
+                          onClick={() => handleRemoveTag(tag.tagId || tag.id)}
+                          className="ml-2 hover:text-indigo-900"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add new tag */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+                    placeholder="Add a tag..."
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  />
+                  <button
+                    onClick={handleAddTag}
+                    disabled={submittingTag || !newTag.trim()}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center"
+                  >
+                    {submittingTag ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Top Tags */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Top Tags from All Users</h3>
+              {tags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {tags.map((tag, index) => (
+                    <span
+                      key={tag.id || index}
+                      className="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
+                    >
+                      {tag.name || tag.tagName}
+                      {tag.count > 1 && (
+                        <span className="ml-1 text-xs text-gray-500">({tag.count})</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm">No tags yet. {hasPurchased ? 'Be the first to add a tag!' : 'Purchase to add tags.'}</p>
               )}
             </div>
           </div>
