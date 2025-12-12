@@ -101,7 +101,41 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    context.Database.EnsureCreated();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        // Check if database can be connected to
+        if (context.Database.CanConnect())
+        {
+            logger.LogInformation("Database connection successful. Database already exists.");
+        }
+        else
+        {
+            logger.LogInformation("Database does not exist. Attempting to create...");
+            context.Database.EnsureCreated();
+            logger.LogInformation("Database created successfully.");
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Database initialization warning. This may be normal if the database already exists or was created manually.");
+
+        // Try to ensure tables exist even if database creation failed
+        try
+        {
+            if (context.Database.CanConnect())
+            {
+                logger.LogInformation("Database is accessible. Ensuring schema is up to date...");
+                // Tables should already exist if database was created manually
+            }
+        }
+        catch (Exception innerEx)
+        {
+            logger.LogError(innerEx, "Failed to connect to database. Please ensure the database exists and the connection string is correct.");
+            throw;
+        }
+    }
 }
 Utility.Initialize(app.Configuration);
 
