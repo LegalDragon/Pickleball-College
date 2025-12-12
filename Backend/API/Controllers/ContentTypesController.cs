@@ -6,7 +6,7 @@ using Pickleball.College.Models.DTOs;
 namespace Pickleball.College.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 public class ContentTypesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

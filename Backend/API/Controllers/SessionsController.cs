@@ -8,7 +8,7 @@ using Pickleball.College.Models.Entities;
 namespace Pickleball.College.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 public class SessionsController : ControllerBase
 {
     private readonly ISessionService _sessionService;

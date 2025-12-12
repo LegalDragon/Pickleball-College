@@ -7,7 +7,7 @@ using Pickleball.College.Models.DTOs;
 namespace Pickleball.College.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 public class CoursesController : ControllerBase
 {
     private readonly ICourseService _courseService;

@@ -7,7 +7,7 @@ using System.Security.Claims;
 namespace Pickleball.College.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 public class VideoReviewsController : ControllerBase
 {
     private readonly IVideoReviewService _videoReviewService;

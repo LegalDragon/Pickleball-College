@@ -7,7 +7,7 @@ using Pickleball.College.Models.DTOs;
 namespace Pickleball.College.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 [Authorize]
 public class MaterialsController : ControllerBase
 {

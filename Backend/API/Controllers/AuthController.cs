@@ -14,7 +14,7 @@ using Stripe.Climate;
 namespace Pickleball.College.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 [AllowAnonymous]
 public class AuthController : ControllerBase
 {

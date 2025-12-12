@@ -10,7 +10,7 @@ using Pickleball.College.Services;
 namespace Pickleball.College.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 [Authorize]
 public class UsersController : ControllerBase
 {

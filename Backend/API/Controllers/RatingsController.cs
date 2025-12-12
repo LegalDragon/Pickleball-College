@@ -7,7 +7,7 @@ using System.Security.Claims;
 namespace Pickleball.College.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 public class RatingsController : ControllerBase
 {
     private readonly IRatingService _ratingService;
