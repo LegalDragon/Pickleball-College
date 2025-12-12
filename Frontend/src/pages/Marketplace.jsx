@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { materialApi, courseApi, ratingApi, coachApi, videoReviewApi, sessionApi, assetApi, tagApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Search, Filter, Play, DollarSign, BookOpen, Video, Users, Upload, Clock, X, Loader2, Eye, Tag } from 'lucide-react'
+import { Search, Filter, Play, DollarSign, BookOpen, Video, Users, Upload, Clock, X, Loader2, Eye, Tag, ExternalLink } from 'lucide-react'
 import StarRating from '../components/StarRating'
 import MockPaymentModal from '../components/MockPaymentModal'
 
@@ -1110,39 +1110,100 @@ const PreviewModal = ({ item, tags, loadingTags, onClose, onNavigate }) => {
     return item.description || 'No description available'
   }
 
+  // Check if item has video content (for owned materials)
+  const hasLocalVideo = item.hasPurchased && item.videoUrl
+  const hasExternalLink = item.hasPurchased && item.externalLink
+
+  // Helper to extract YouTube video ID
+  const getYouTubeVideoId = (url) => {
+    if (!url) return null
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/
+    const match = url.match(regExp)
+    return (match && match[2].length === 11) ? match[2] : null
+  }
+
+  const youtubeVideoId = hasExternalLink ? getYouTubeVideoId(item.externalLink) : null
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
-        {/* Header with thumbnail */}
-        <div className="relative h-48 bg-gray-200">
-          {getThumbnail() ? (
-            <img
-              src={getAssetUrl(getThumbnail())}
-              alt={getTitle()}
-              className={`w-full h-full ${item.type === 'Coach' ? 'object-contain' : 'object-cover'}`}
-            />
-          ) : (
-            <div className={`w-full h-full flex items-center justify-center ${getTypeColor()} bg-opacity-20`}>
-              <div className={`p-4 rounded-full ${getTypeColor()} text-white`}>
-                {getTypeIcon()}
-              </div>
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-2">
+            <div className={`${getTypeColor()} text-white px-2 py-1 rounded text-xs font-medium`}>
+              {item.type.toUpperCase()}
             </div>
-          )}
+            <h3 className="text-lg font-bold text-gray-900">{getTitle()}</h3>
+          </div>
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 p-1 bg-white rounded-full shadow hover:bg-gray-100"
+            className="p-1 hover:bg-gray-100 rounded-full"
           >
             <X className="w-5 h-5" />
           </button>
-          <div className={`absolute top-3 left-3 ${getTypeColor()} text-white px-2 py-1 rounded text-xs font-medium`}>
-            {item.type.toUpperCase()}
-          </div>
         </div>
+
+        {/* Video Content Section - for owned materials */}
+        {(hasLocalVideo || hasExternalLink) && (
+          <div className="bg-black">
+            {hasLocalVideo && (
+              <video
+                controls
+                className="w-full max-h-[400px]"
+                src={getAssetUrl(item.videoUrl)}
+              >
+                Your browser does not support the video tag.
+              </video>
+            )}
+            {!hasLocalVideo && youtubeVideoId && (
+              <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                <iframe
+                  className="absolute top-0 left-0 w-full h-full"
+                  src={`https://www.youtube.com/embed/${youtubeVideoId}`}
+                  title={getTitle()}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            )}
+            {!hasLocalVideo && hasExternalLink && !youtubeVideoId && (
+              <div className="p-6 text-center">
+                <a
+                  href={item.externalLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <ExternalLink className="w-5 h-5" />
+                  Open External Content
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Thumbnail - only show if no video content */}
+        {!hasLocalVideo && !hasExternalLink && (
+          <div className="relative h-48 bg-gray-200">
+            {getThumbnail() ? (
+              <img
+                src={getAssetUrl(getThumbnail())}
+                alt={getTitle()}
+                className={`w-full h-full ${item.type === 'Coach' ? 'object-contain' : 'object-cover'}`}
+              />
+            ) : (
+              <div className={`w-full h-full flex items-center justify-center ${getTypeColor()} bg-opacity-20`}>
+                <div className={`p-4 rounded-full ${getTypeColor()} text-white`}>
+                  {getTypeIcon()}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Content */}
         <div className="p-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-2">{getTitle()}</h3>
-
           {/* Rating */}
           <div className="flex items-center mb-4">
             <StarRating
@@ -1154,7 +1215,7 @@ const PreviewModal = ({ item, tags, loadingTags, onClose, onNavigate }) => {
           </div>
 
           {/* Description */}
-          <p className="text-gray-600 mb-4 line-clamp-3">{getDescription()}</p>
+          <p className="text-gray-600 mb-4">{getDescription()}</p>
 
           {/* Additional Info */}
           {item.type === 'Coach' && item.coachProfile?.certificationLevel && (
