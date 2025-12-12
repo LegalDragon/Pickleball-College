@@ -76,12 +76,27 @@ const Marketplace = () => {
           console.error('Failed to load course ratings:', error)
         }
 
-        // Load tags for courses (top 10)
+        // Load tags for courses (get actual tags on the object)
         try {
           const courseTagsMap = {}
           await Promise.all(coursesData.map(async (course) => {
-            const tags = await tagApi.getCommonTags('Course', course.id, 10)
-            courseTagsMap[course.id] = Array.isArray(tags) ? tags : []
+            const tags = await tagApi.getTags('Course', course.id)
+            // Aggregate tags by name and count occurrences
+            const tagCounts = {}
+            const tagsArray = Array.isArray(tags) ? tags : []
+            tagsArray.forEach(tag => {
+              const name = tag.tagName || tag.name
+              if (name) {
+                if (!tagCounts[name]) {
+                  tagCounts[name] = { tagId: tag.tagId, tagName: name, count: 0 }
+                }
+                tagCounts[name].count++
+              }
+            })
+            // Sort by count and take top 10
+            courseTagsMap[course.id] = Object.values(tagCounts)
+              .sort((a, b) => b.count - a.count)
+              .slice(0, 10)
           }))
           setCourseTags(courseTagsMap)
         } catch (error) {
@@ -99,12 +114,27 @@ const Marketplace = () => {
           console.error('Failed to load material ratings:', error)
         }
 
-        // Load tags for materials (top 10)
+        // Load tags for materials (get actual tags on the object)
         try {
           const materialTagsMap = {}
           await Promise.all(materialsData.map(async (material) => {
-            const tags = await tagApi.getCommonTags('Material', material.id, 10)
-            materialTagsMap[material.id] = Array.isArray(tags) ? tags : []
+            const tags = await tagApi.getTags('Material', material.id)
+            // Aggregate tags by name and count occurrences
+            const tagCounts = {}
+            const tagsArray = Array.isArray(tags) ? tags : []
+            tagsArray.forEach(tag => {
+              const name = tag.tagName || tag.name
+              if (name) {
+                if (!tagCounts[name]) {
+                  tagCounts[name] = { tagId: tag.tagId, tagName: name, count: 0 }
+                }
+                tagCounts[name].count++
+              }
+            })
+            // Sort by count and take top 10
+            materialTagsMap[material.id] = Object.values(tagCounts)
+              .sort((a, b) => b.count - a.count)
+              .slice(0, 10)
           }))
           setMaterialTags(materialTagsMap)
         } catch (error) {
@@ -122,12 +152,27 @@ const Marketplace = () => {
           console.error('Failed to load coach ratings:', error)
         }
 
-        // Load tags for coaches (top 10)
+        // Load tags for coaches (get actual tags on the object)
         try {
           const coachTagsMap = {}
           await Promise.all(coachesData.map(async (coach) => {
-            const tags = await tagApi.getCommonTags('Coach', coach.id, 10)
-            coachTagsMap[coach.id] = Array.isArray(tags) ? tags : []
+            const tags = await tagApi.getTags('Coach', coach.id)
+            // Aggregate tags by name and count occurrences
+            const tagCounts = {}
+            const tagsArray = Array.isArray(tags) ? tags : []
+            tagsArray.forEach(tag => {
+              const name = tag.tagName || tag.name
+              if (name) {
+                if (!tagCounts[name]) {
+                  tagCounts[name] = { tagId: tag.tagId, tagName: name, count: 0 }
+                }
+                tagCounts[name].count++
+              }
+            })
+            // Sort by count and take top 10
+            coachTagsMap[coach.id] = Object.values(tagCounts)
+              .sort((a, b) => b.count - a.count)
+              .slice(0, 10)
           }))
           setCoachTags(coachTagsMap)
         } catch (error) {

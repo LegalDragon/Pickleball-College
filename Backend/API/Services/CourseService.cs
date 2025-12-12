@@ -354,6 +354,7 @@ public class CourseService : ICourseService
             CreatedAt = course.CreatedAt,
             Coach = new CoachDto
             {
+                Id = course.CoachId,
                 FirstName = course.Coach.FirstName,
                 LastName = course.Coach.LastName,
                 ProfileImageUrl = course.Coach.ProfileImageUrl
@@ -390,6 +391,7 @@ public class CourseService : ICourseService
                     CreatedAt = cm.Material.CreatedAt,
                     Coach = new CoachDto
                     {
+                        Id = cm.Material.CoachId,
                         FirstName = cm.Material.Coach.FirstName,
                         LastName = cm.Material.Coach.LastName,
                         ProfileImageUrl = cm.Material.Coach.ProfileImageUrl
@@ -434,6 +436,7 @@ public class CourseService : ICourseService
                 CreatedAt = cm.Material.CreatedAt,
                 Coach = new CoachDto
                 {
+                    Id = cm.Material.CoachId,
                     FirstName = cm.Material.Coach.FirstName,
                     LastName = cm.Material.Coach.LastName,
                     ProfileImageUrl = cm.Material.Coach.ProfileImageUrl

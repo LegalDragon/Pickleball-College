@@ -182,6 +182,7 @@ public class MaterialService : IMaterialService
                 CreatedAt = m.CreatedAt,
                 Coach = new CoachDto
                 {
+                    Id = m.CoachId,
                     FirstName = m.Coach.FirstName,
                     LastName = m.Coach.LastName,
                     ProfileImageUrl = m.Coach.ProfileImageUrl
@@ -211,6 +212,7 @@ public class MaterialService : IMaterialService
                 CreatedAt = m.CreatedAt,
                 Coach = new CoachDto
                 {
+                    Id = m.CoachId,
                     FirstName = m.Coach.FirstName,
                     LastName = m.Coach.LastName,
                     ProfileImageUrl = m.Coach.ProfileImageUrl
@@ -253,6 +255,7 @@ public class MaterialService : IMaterialService
             CreatedAt = material.CreatedAt,
             Coach = new CoachDto
             {
+                Id = material.CoachId,
                 FirstName = material.Coach.FirstName,
                 LastName = material.Coach.LastName,
                 ProfileImageUrl = material.Coach.ProfileImageUrl
@@ -281,6 +284,7 @@ public class MaterialService : IMaterialService
                 CreatedAt = m.CreatedAt,
                 Coach = new CoachDto
                 {
+                    Id = m.CoachId,
                     FirstName = m.Coach.FirstName,
                     LastName = m.Coach.LastName,
                     ProfileImageUrl = m.Coach.ProfileImageUrl
