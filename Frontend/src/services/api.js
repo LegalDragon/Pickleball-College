@@ -487,6 +487,10 @@ export const coachApi = {
   getCoaches: () =>
     api.get('/users/coaches').then(response => response.data || response),
 
+  // Get a single coach by ID
+  getCoach: (id) =>
+    api.get(`/users/coaches/${id}`).then(response => response.data || response),
+
   // Search coaches (filter on client-side for now)
   searchCoaches: (query) =>
     api.get('/users/coaches').then(response => {

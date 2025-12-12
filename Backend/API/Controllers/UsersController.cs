@@ -381,6 +381,59 @@ public class UsersController : ControllerBase
         }
     }
 
+    // GET: api/Users/coaches/{id} (Get a single coach by ID)
+    [HttpGet("coaches/{id}")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<UserProfileDto>>> GetCoach(int id)
+    {
+        try
+        {
+            var coach = await _context.Users
+                .Where(u => u.Id == id && u.Role == "Coach" && u.IsActive)
+                .Select(u => new UserProfileDto
+                {
+                    Id = u.Id,
+                    Email = u.Email,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,
+                    Role = u.Role,
+                    Bio = u.Bio,
+                    ProfileImageUrl = u.ProfileImageUrl,
+                    ExperienceLevel = u.ExperienceLevel,
+                    PlayingStyle = u.PlayingStyle,
+                    YearsPlaying = u.YearsPlaying,
+                    IntroVideo = u.IntroVideo,
+                    CreatedAt = u.CreatedAt,
+                    IsActive = u.IsActive
+                })
+                .FirstOrDefaultAsync();
+
+            if (coach == null)
+            {
+                return NotFound(new ApiResponse<UserProfileDto>
+                {
+                    Success = false,
+                    Message = "Coach not found"
+                });
+            }
+
+            return Ok(new ApiResponse<UserProfileDto>
+            {
+                Success = true,
+                Data = coach
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching coach {CoachId}", id);
+            return StatusCode(500, new ApiResponse<UserProfileDto>
+            {
+                Success = false,
+                Message = "An error occurred while fetching coach"
+            });
+        }
+    }
+
     // GET: api/Users (Admin only)
     [Authorize(Roles = "Admin")]
     [HttpGet]
