@@ -14,7 +14,7 @@ export const getAssetUrl = (path) => {
 
   // If path starts with /api, use the full API URL
   if (path.startsWith('/api/')) {
-    return `${baseUrl}${path}`
+    return `${baseUrl}${path.replace('/api/', '/')}`
   }
   // If path starts with /, prepend base URL
   if (path.startsWith('/')) {
