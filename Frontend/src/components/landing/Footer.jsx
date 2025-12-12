@@ -3,7 +3,13 @@ import React from 'react';
 const Footer = () => {
   const footerLinks = {
     quickLinks: ['Home', 'Courses', 'Coaches', 'Pricing'],
-    resources: ['Blog', 'Training Videos', 'Drills', 'Strategy Guides'],
+    resources: [
+      { name: 'Blog', href: '#' },
+      { name: 'Training Videos', href: '#' },
+      { name: 'Drills', href: '#' },
+      { name: 'Strategy Guides', href: '#' },
+      { name: 'USA Pickleball Rules', href: 'https://usapickleball.org/what-is-pickleball/official-rules/', external: true }
+    ],
     contact: ['Support', 'Become a Coach', 'Partnerships']
   };
 
@@ -37,7 +43,14 @@ const Footer = () => {
             <h3 className="text-xl font-bold mb-4">Resources</h3>
             <ul>
               {footerLinks.resources.map((resource, index) => (
-                <li key={index}><a href="#">{resource}</a></li>
+                <li key={index}>
+                  <a
+                    href={resource.href}
+                    {...(resource.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                  >
+                    {resource.name}
+                  </a>
+                </li>
               ))}
             </ul>
           </div>
