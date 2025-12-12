@@ -15,7 +15,62 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/api': {
+      '/auth': {
+        target: 'https://localhost:7009',
+        changeOrigin: true,
+        secure: false
+      },
+      '/materials': {
+        target: 'https://localhost:7009',
+        changeOrigin: true,
+        secure: false
+      },
+      '/sessions': {
+        target: 'https://localhost:7009',
+        changeOrigin: true,
+        secure: false
+      },
+      '/theme': {
+        target: 'https://localhost:7009',
+        changeOrigin: true,
+        secure: false
+      },
+      '/users': {
+        target: 'https://localhost:7009',
+        changeOrigin: true,
+        secure: false
+      },
+      '/contenttypes': {
+        target: 'https://localhost:7009',
+        changeOrigin: true,
+        secure: false
+      },
+      '/courses': {
+        target: 'https://localhost:7009',
+        changeOrigin: true,
+        secure: false
+      },
+      '/assets': {
+        target: 'https://localhost:7009',
+        changeOrigin: true,
+        secure: false
+      },
+      '/ratings': {
+        target: 'https://localhost:7009',
+        changeOrigin: true,
+        secure: false
+      },
+      '/tags': {
+        target: 'https://localhost:7009',
+        changeOrigin: true,
+        secure: false
+      },
+      '/videoreviews': {
+        target: 'https://localhost:7009',
+        changeOrigin: true,
+        secure: false
+      },
+      '/uploads': {
         target: 'https://localhost:7009',
         changeOrigin: true,
         secure: false
