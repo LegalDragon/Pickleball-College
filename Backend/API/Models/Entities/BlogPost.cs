@@ -1,38 +1,51 @@
+using System;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Pickleball.College.Models.Entities;
-
-public class BlogPost
+namespace Pickleball.College.Models.Entities
 {
-    public Guid Id { get; set; }
+    public class BlogPost
+    {
+        [Key]
+        public int Id { get; set; }
 
-    [Required]
-    [MaxLength(200)]
-    public string Title { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string Title { get; set; } = string.Empty;
 
-    [Required]
-    public string Content { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(500)]
+        public string Slug { get; set; } = string.Empty;
 
-    [MaxLength(500)]
-    public string? Summary { get; set; }
+        [MaxLength(500)]
+        public string? Summary { get; set; }
 
-    public string? FeaturedImageUrl { get; set; }
+        [Required]
+        public string Content { get; set; } = string.Empty;
 
-    public bool IsPublished { get; set; } = false;
+        [MaxLength(500)]
+        public string? FeaturedImageUrl { get; set; }
 
-    public DateTime? PublishedAt { get; set; }
+        [MaxLength(100)]
+        public string? Category { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        [MaxLength(500)]
+        public string? Tags { get; set; } // Comma-separated tags
 
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        [Required]
+        public int AuthorId { get; set; }
 
-    [Required]
-    public int ViewCount { get; set; } = 0;
+        [ForeignKey("AuthorId")]
+        public virtual User Author { get; set; } = null!;
 
-    // Foreign key
-    [Required]
-    public Guid AuthorId { get; set; }
+        public bool IsPublished { get; set; } = false;
 
-    // Navigation property
-    public User Author { get; set; } = null!;
+        public DateTime? PublishedAt { get; set; }
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        public int ViewCount { get; set; } = 0;
+    }
 }
