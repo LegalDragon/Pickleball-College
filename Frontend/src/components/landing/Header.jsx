@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const Header = () => {
   return (
@@ -7,12 +8,11 @@ const Header = () => {
         <div className="header-content">
           <h1>Play Better Pickleball Now</h1>
           <p className="subtitle">
-            Join the premier platform for pickleball education. Access world-class training materials, 
+            Join the premier platform for pickleball education. Access world-class training materials,
             schedule sessions with certified coaches, and transform your game.
           </p>
           <div className="btn-group">
-            <button className="btn btn-primary">Start Learning Free</button>
-            <button className="btn btn-outline">Browse Courses</button>
+            <Link to="/Marketplace" className="btn btn-primary">Browse Courses</Link>
           </div>
         </div>
       </div>

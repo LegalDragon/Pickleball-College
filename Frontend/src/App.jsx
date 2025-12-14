@@ -7,11 +7,19 @@ import SessionScheduler from './pages/SessionScheduler'
 import MaterialCreator from './pages/MaterialCreator'
 import EditMaterial from './pages/EditMaterial'
 import MaterialDetail from './pages/MaterialDetail'
+import CourseCreator from './pages/CourseCreator'
+import CourseEditor from './pages/CourseEditor'
+import CourseDetail from './pages/CourseDetail'
+import CoachProfile from './pages/CoachProfile'
 import CoachDashboard from './pages/CoachDashboard'
 import StudentDashboard from './pages/StudentDashboard'
-import AdminDashboard from './pages/AdminDashboard' // Add this import
-import Profile from './pages/Profile' // Add this import
-import Notifications from './pages/Notifications' // Add this import
+import AdminDashboard from './pages/AdminDashboard'
+import Profile from './pages/Profile'
+import Notifications from './pages/Notifications'
+import BlogList from './pages/BlogList'
+import BlogPost from './pages/BlogPost'
+import BlogEditor from './pages/BlogEditor'
+import BlogManagement from './pages/BlogManagement'
 import ProtectedRoute from './components/ProtectedRoute'
 
 import ForgotPassword from './pages/ForgotPassword'
@@ -27,9 +35,15 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-  <Route path="/Marketplace" element={<Marketplace />} />
-     <Route path="/coach/materials/edit/:id" element={<EditMaterial />} />
-<Route path="/coach/materials/:id" element={<MaterialDetail />} /> {/* Optional */}
+      <Route path="/Marketplace" element={<Marketplace />} />
+      <Route path="/courses/:id" element={<CourseDetail />} />
+      <Route path="/coaches/:id" element={<CoachProfile />} />
+      <Route path="/coach/materials/edit/:id" element={<EditMaterial />} />
+      <Route path="/coach/materials/:id" element={<MaterialDetail />} />
+
+      {/* Blog Routes (Public) */}
+      <Route path="/blog" element={<BlogList />} />
+      <Route path="/blog/:slug" element={<BlogPost />} />
 
 
       {/* Protected Routes - Role Specific */}
@@ -46,6 +60,35 @@ function App() {
 <Route path="/Coach/Materials/Create" element={
         <ProtectedRoute role="Coach">
           <MaterialCreator />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/coach/courses/create" element={
+        <ProtectedRoute role="Coach">
+          <CourseCreator />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/coach/courses/edit/:id" element={
+        <ProtectedRoute role="Coach">
+          <CourseEditor />
+        </ProtectedRoute>
+      } />
+
+      {/* Coach Blog Routes */}
+      <Route path="/coach/blog" element={
+        <ProtectedRoute role="Coach">
+          <BlogManagement />
+        </ProtectedRoute>
+      } />
+      <Route path="/coach/blog/new" element={
+        <ProtectedRoute role="Coach">
+          <BlogEditor />
+        </ProtectedRoute>
+      } />
+      <Route path="/coach/blog/edit/:id" element={
+        <ProtectedRoute role="Coach">
+          <BlogEditor />
         </ProtectedRoute>
       } />
 

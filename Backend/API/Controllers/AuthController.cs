@@ -14,7 +14,7 @@ using Stripe.Climate;
 namespace Pickleball.College.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 [AllowAnonymous]
 public class AuthController : ControllerBase
 {
@@ -34,9 +34,9 @@ public class AuthController : ControllerBase
             var user = await _authService.RegisterAsync(request);
             var token = _authService.GenerateJwtToken(user);
             
-            return Ok(new { 
-                Token = token, 
-                User = new { user.Id, user.Email, user.FirstName, user.LastName, user.Role } 
+            return Ok(new {
+                Token = token,
+                User = new { user.Id, user.Email, user.FirstName, user.LastName, user.Role, user.ProfileImageUrl }
             });
         }
         catch (ArgumentException ex)
@@ -65,7 +65,8 @@ public class AuthController : ControllerBase
                 user.Email,
                 user.FirstName,
                 user.LastName,
-                user.Role
+                user.Role,
+                user.ProfileImageUrl
             }
         });
     }
@@ -84,7 +85,7 @@ public class AuthController : ControllerBase
         return Ok(new
         {
             Token = token,
-            User = new { user.Id, user.Email, user.FirstName, user.LastName, user.Role }
+            User = new { user.Id, user.Email, user.FirstName, user.LastName, user.Role, user.ProfileImageUrl }
         });
     }
 }

@@ -4,8 +4,8 @@ namespace Pickleball.College.Models.Entities;
 
 public class TrainingMaterial
 {
-    public Guid Id { get; set; }
-    public Guid CoachId { get; set; }
+    public int Id { get; set; }
+    public int CoachId { get; set; }
     
     [Required]
     public string Title { get; set; } = string.Empty;
@@ -29,4 +29,5 @@ public class TrainingMaterial
     public User Coach { get; set; } = null!;
     public ICollection<MaterialPurchase> Purchases { get; set; } = new List<MaterialPurchase>();
     public ICollection<TrainingSession> Sessions { get; set; } = new List<TrainingSession>();
+    public ICollection<CourseMaterial> CourseMaterials { get; set; } = new List<CourseMaterial>();
 }

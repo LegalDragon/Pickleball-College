@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useParams, useNavigate } from 'react-router-dom'
-import { materialApi } from '../services/api'
+import { materialApi, assetApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Upload, Video, Image, FileText, Link, ArrowLeft } from 'lucide-react'
+import { Upload, Video, Image, FileText, Link, ArrowLeft, Play, Eye, EyeOff, Loader2 } from 'lucide-react'
+import VideoUploadModal from '../components/ui/VideoUploadModal'
+import TagSelector from '../components/TagSelector'
 
 const EditMaterial = () => {
-  const [videoFile, setVideoFile] = useState(null)
+  const [videoUrl, setVideoUrl] = useState(null)
   const [thumbnailFile, setThumbnailFile] = useState(null)
-  const [documentFile, setDocumentFile] = useState(null)
+  const [thumbnailPreview, setThumbnailPreview] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [loadingMaterial, setLoadingMaterial] = useState(true)
   const [currentMaterial, setCurrentMaterial] = useState(null)
-  
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
+  const [togglingPublish, setTogglingPublish] = useState(false)
+
   const { user } = useAuth()
   const navigate = useNavigate()
   const { id } = useParams()
@@ -43,27 +47,46 @@ const EditMaterial = () => {
     try {
       setLoadingMaterial(true)
       const material = await materialApi.getMaterial(id)
-      
-      if (material.coachId !== user.id && user.role !== 'Admin') {
+
+      console.log('EditMaterial - API response:', material)
+
+      if (!material || !material.id) {
+        throw new Error('Material not found')
+      }
+
+      // Check authorization
+      if (material.coachId && material.coachId !== user.id && user.role !== 'Admin') {
         alert('You are not authorized to edit this material')
         navigate('/coach/dashboard')
         return
       }
 
       setCurrentMaterial(material)
-      
+
+      // Set video URL from externalLink or videoUrl
+      if (material.externalLink) {
+        setVideoUrl(material.externalLink)
+      } else if (material.videoUrl) {
+        setVideoUrl(material.videoUrl)
+      }
+
+      // Set thumbnail preview from existing material
+      if (material.thumbnailUrl) {
+        setThumbnailPreview(getAssetUrl(material.thumbnailUrl))
+      }
+
       // Reset form with material data
       reset({
-        title: material.title,
-        description: material.description,
-        contentType: material.contentType,
+        title: material.title || '',
+        description: material.description || '',
+        contentType: material.contentType || 'Video',
         externalLink: material.externalLink || '',
-        price: material.price
+        price: material.price ?? 0
       })
 
     } catch (error) {
       console.error('Failed to load material:', error)
-      alert('Failed to load material: ' + error.message)
+      alert('Failed to load material: ' + (error.message || 'Unknown error'))
       navigate('/coach/dashboard')
     } finally {
       setLoadingMaterial(false)
@@ -79,35 +102,74 @@ const EditMaterial = () => {
     }
   }
 
+  // Check if URL is external (YouTube, etc.)
+  const isExternalVideoUrl = (url) => {
+    if (!url) return false
+    const patterns = ['youtube.com', 'youtu.be', 'tiktok.com', 'vimeo.com']
+    return patterns.some(p => url.includes(p))
+  }
+
+  // Get YouTube embed URL
+  const getVideoEmbedUrl = (url) => {
+    if (!url) return null
+    if (url.includes('youtube.com/watch')) {
+      const videoId = new URL(url).searchParams.get('v')
+      return `https://www.youtube.com/embed/${videoId}`
+    }
+    if (url.includes('youtu.be/')) {
+      const videoId = url.split('youtu.be/')[1]?.split('?')[0]
+      return `https://www.youtube.com/embed/${videoId}`
+    }
+    return null
+  }
+
+  // Handle video save from modal
+  const handleVideoSave = ({ url }) => {
+    setVideoUrl(url)
+    setValue('externalLink', url)
+  }
+
+  // Handle thumbnail upload
+  const handleThumbnailChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setThumbnailFile(file)
+      setThumbnailPreview(URL.createObjectURL(file))
+    }
+  }
+
+  // Remove thumbnail
+  const handleRemoveThumbnail = () => {
+    setThumbnailFile(null)
+    setThumbnailPreview(currentMaterial?.thumbnailUrl ? getAssetUrl(currentMaterial.thumbnailUrl) : null)
+  }
+
+  // Toggle publish status
+  const handleTogglePublish = async () => {
+    try {
+      setTogglingPublish(true)
+      const updated = await materialApi.togglePublish(id)
+      setCurrentMaterial(updated)
+    } catch (error) {
+      console.error('Failed to toggle publish:', error)
+      alert('Failed to update publish status: ' + (error.message || 'Unknown error'))
+    } finally {
+      setTogglingPublish(false)
+    }
+  }
+
   const onSubmit = async (data) => {
     if (!user) {
       alert('Please log in to edit materials')
       return
     }
 
-    // Validate file uploads based on content type
-    if (contentType !== 'Link') {
-      // Check if we have existing files or new uploads
-      const hasExistingFile = currentMaterial?.videoFile || currentMaterial?.thumbnailFile || currentMaterial?.documentFile
-      const hasNewFile = videoFile || thumbnailFile || documentFile
-      
-      if (!hasExistingFile && !hasNewFile) {
-        if (contentType === 'Video') {
-          alert('Please upload a video file for Video content')
-          return
-        }
-        if (contentType === 'Image') {
-          alert('Please upload an image file for Image content')
-          return
-        }
-        if (contentType === 'Document') {
-          alert('Please upload a document file for Document content')
-          return
-        }
-      }
+    // Validate based on content type
+    if (contentType === 'Video' && !videoUrl) {
+      alert('Please add a video for Video content')
+      return
     }
 
-    // Validate external link if Link type
     if (contentType === 'Link') {
       if (!data.externalLink) {
         alert('Please provide an external link for Link content')
@@ -121,23 +183,33 @@ const EditMaterial = () => {
 
     setUploading(true)
     try {
+      // Upload new thumbnail if provided
+      let thumbnailUrl = currentMaterial?.thumbnailUrl || ''
+      if (thumbnailFile) {
+        const thumbResponse = await assetApi.upload(thumbnailFile, 'thumbnails', 'CoachMaterial', id)
+        if (thumbResponse.success && thumbResponse.data) {
+          thumbnailUrl = thumbResponse.data.url
+        }
+      }
+
       const formData = new FormData()
       formData.append('title', data.title)
       formData.append('description', data.description)
       formData.append('contentType', data.contentType)
-      formData.append('externalLink', data.externalLink || '')
       formData.append('price', data.price.toString())
 
-      if (videoFile) {
-        formData.append('videoFile', videoFile)
+      // Set external link based on content type
+      if (contentType === 'Video' && videoUrl) {
+        formData.append('externalLink', videoUrl)
+      } else if (contentType === 'Link') {
+        formData.append('externalLink', data.externalLink || '')
+      } else {
+        formData.append('externalLink', '')
       }
 
-      if (thumbnailFile) {
-        formData.append('thumbnailFile', thumbnailFile)
-      }
-
-      if (documentFile) {
-        formData.append('documentFile', documentFile)
+      // Include thumbnail URL
+      if (thumbnailUrl) {
+        formData.append('thumbnailUrl', thumbnailUrl)
       }
 
       await materialApi.updateMaterial(id, formData)
@@ -160,104 +232,66 @@ const EditMaterial = () => {
     }
   }
 
+  const renderVideoPreview = () => {
+    if (!videoUrl) {
+      return (
+        <div
+          onClick={() => setIsVideoModalOpen(true)}
+          className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition"
+        >
+          <Video className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+          <p className="text-primary-600 hover:text-primary-700 font-medium">
+            Add Video
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            Upload a video file or paste a YouTube/TikTok link
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="relative rounded-lg overflow-hidden bg-gray-100">
+        {isExternalVideoUrl(videoUrl) && getVideoEmbedUrl(videoUrl) ? (
+          <iframe
+            src={getVideoEmbedUrl(videoUrl)}
+            className="w-full aspect-video"
+            allowFullScreen
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          />
+        ) : isExternalVideoUrl(videoUrl) ? (
+          <div className="w-full aspect-video flex items-center justify-center bg-gray-200">
+            <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center">
+              <Play className="w-5 h-5 mr-2" />
+              Open Video Link
+            </a>
+          </div>
+        ) : (
+          <video src={getAssetUrl(videoUrl)} controls className="w-full aspect-video" />
+        )}
+        <button
+          type="button"
+          onClick={() => setIsVideoModalOpen(true)}
+          className="absolute top-2 right-2 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+        >
+          Change Video
+        </button>
+      </div>
+    )
+  }
+
   const renderFileUpload = () => {
     switch (contentType) {
       case 'Video':
         return (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Video File {currentMaterial?.videoFile ? '(Current file uploaded)' : '*'}
+              Video Content *
             </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center">
-              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <input
-                type="file"
-                accept="video/*"
-                onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
-                className="hidden"
-                id="video-upload"
-              />
-              <label htmlFor="video-upload" className="cursor-pointer">
-                <span className="text-primary-600 hover:text-primary-700 font-medium">
-                  {videoFile ? 'Change video file' : currentMaterial?.videoFile ? 'Replace video file' : 'Choose video file'}
-                </span>
-              </label>
-              {videoFile ? (
-                <p className="mt-2 text-sm text-gray-600">{videoFile.name}</p>
-              ) : currentMaterial?.videoFile ? (
-                <p className="mt-2 text-sm text-gray-600">Current: {currentMaterial.videoFile}</p>
-              ) : null}
-              <p className="mt-1 text-xs text-gray-500">
-                {currentMaterial?.videoFile ? 'Optional - leave blank to keep current file' : 'Required for video content'}
-              </p>
-            </div>
+            {renderVideoPreview()}
           </div>
         )
-      
-      case 'Image':
-        return (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Image File {currentMaterial?.thumbnailFile ? '(Current file uploaded)' : '*'}
-            </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center">
-              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
-                className="hidden"
-                id="image-upload"
-              />
-              <label htmlFor="image-upload" className="cursor-pointer">
-                <span className="text-primary-600 hover:text-primary-700 font-medium">
-                  {thumbnailFile ? 'Change image file' : currentMaterial?.thumbnailFile ? 'Replace image file' : 'Choose image file'}
-                </span>
-              </label>
-              {thumbnailFile ? (
-                <p className="mt-2 text-sm text-gray-600">{thumbnailFile.name}</p>
-              ) : currentMaterial?.thumbnailFile ? (
-                <p className="mt-2 text-sm text-gray-600">Current: {currentMaterial.thumbnailFile}</p>
-              ) : null}
-              <p className="mt-1 text-xs text-gray-500">
-                {currentMaterial?.thumbnailFile ? 'Optional - leave blank to keep current file' : 'Required for image content'}
-              </p>
-            </div>
-          </div>
-        )
-      
-      case 'Document':
-        return (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Document File {currentMaterial?.documentFile ? '(Current file uploaded)' : '*'}
-            </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center">
-              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.txt,.ppt,.pptx"
-                onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
-                className="hidden"
-                id="document-upload"
-              />
-              <label htmlFor="document-upload" className="cursor-pointer">
-                <span className="text-primary-600 hover:text-primary-700 font-medium">
-                  {documentFile ? 'Change document file' : currentMaterial?.documentFile ? 'Replace document file' : 'Choose document file'}
-                </span>
-              </label>
-              {documentFile ? (
-                <p className="mt-2 text-sm text-gray-600">{documentFile.name}</p>
-              ) : currentMaterial?.documentFile ? (
-                <p className="mt-2 text-sm text-gray-600">Current: {currentMaterial.documentFile}</p>
-              ) : null}
-              <p className="mt-1 text-xs text-gray-500">
-                {currentMaterial?.documentFile ? 'Optional - leave blank to keep current file' : 'Required for document content'}
-              </p>
-            </div>
-          </div>
-        )
-      
+
       case 'Link':
         return (
           <div>
@@ -269,7 +303,7 @@ const EditMaterial = () => {
               <span>Paste YouTube, TikTok, or other video links</span>
             </div>
             <input
-              {...register('externalLink', { 
+              {...register('externalLink', {
                 required: contentType === 'Link' ? 'External link is required' : false,
                 validate: (value) => {
                   if (contentType === 'Link' && value && !isValidUrl(value)) {
@@ -286,7 +320,7 @@ const EditMaterial = () => {
             )}
           </div>
         )
-      
+
       default:
         return null
     }
@@ -296,7 +330,7 @@ const EditMaterial = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <Loader2 className="w-12 h-12 animate-spin text-primary-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading material...</p>
         </div>
       </div>
@@ -307,17 +341,40 @@ const EditMaterial = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-lg shadow-md p-6">
-          {/* Back button */}
-          <button
-            onClick={() => navigate('/coach/dashboard')}
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </button>
+          {/* Header with back button and publish toggle */}
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => navigate('/coach/dashboard')}
+              className="flex items-center text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Dashboard
+            </button>
+
+            {/* Publish Toggle */}
+            <button
+              type="button"
+              onClick={handleTogglePublish}
+              disabled={togglingPublish}
+              className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                currentMaterial?.isPublished
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {togglingPublish ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : currentMaterial?.isPublished ? (
+                <Eye className="w-4 h-4 mr-2" />
+              ) : (
+                <EyeOff className="w-4 h-4 mr-2" />
+              )}
+              {currentMaterial?.isPublished ? 'Published' : 'Unpublished'}
+            </button>
+          </div>
 
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Edit Training Material</h1>
-          
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Basic Information */}
             <div className="grid grid-cols-1 gap-6">
@@ -360,6 +417,13 @@ const EditMaterial = () => {
                 <select
                   {...register('contentType', { required: 'Content type is required' })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  onChange={(e) => {
+                    setValue('contentType', e.target.value)
+                    // Reset video URL when changing type
+                    if (e.target.value !== 'Video') {
+                      setVideoUrl(null)
+                    }
+                  }}
                 >
                   <option value="Video">Video</option>
                   <option value="Image">Image</option>
@@ -379,7 +443,7 @@ const EditMaterial = () => {
                   type="number"
                   step="0.01"
                   min="0"
-                  {...register('price', { 
+                  {...register('price', {
                     required: 'Price is required',
                     min: { value: 0, message: 'Price must be positive' }
                   })}
@@ -400,39 +464,78 @@ const EditMaterial = () => {
                   {contentType === 'Link' ? 'External Link' : contentType} Content
                 </span>
               </div>
-              
+
               {renderFileUpload()}
             </div>
 
-            {/* Optional Thumbnail Upload (only if not Image type) */}
-            {contentType !== 'Image' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Thumbnail Image (Optional) {currentMaterial?.thumbnailFile && contentType !== 'Image' ? '(Current file uploaded)' : ''}
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center">
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
-                    className="hidden"
-                    id="thumbnail-upload"
-                  />
-                  <label htmlFor="thumbnail-upload" className="cursor-pointer">
-                    <span className="text-primary-600 hover:text-primary-700 font-medium">
-                      {thumbnailFile ? 'Change thumbnail' : currentMaterial?.thumbnailFile ? 'Replace thumbnail' : 'Choose thumbnail'}
-                    </span>
-                  </label>
-                  {thumbnailFile ? (
-                    <p className="mt-2 text-sm text-gray-600">{thumbnailFile.name}</p>
-                  ) : currentMaterial?.thumbnailFile && contentType !== 'Image' ? (
-                    <p className="mt-2 text-sm text-gray-600">Current: {currentMaterial.thumbnailFile}</p>
-                  ) : null}
-                  <p className="mt-1 text-xs text-gray-500">
-                    Recommended for better presentation
-                  </p>
-                </div>
+            {/* Thumbnail Upload with Preview */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Thumbnail Image {thumbnailPreview ? '' : '(Optional)'}
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-md p-4">
+                {thumbnailPreview ? (
+                  <div className="relative inline-block">
+                    <img
+                      src={thumbnailPreview}
+                      alt="Thumbnail preview"
+                      className="max-h-48 rounded-lg"
+                    />
+                    <div className="absolute top-2 right-2 flex gap-2">
+                      <label
+                        htmlFor="thumbnail-upload"
+                        className="px-2 py-1 bg-blue-600 text-white text-xs rounded cursor-pointer hover:bg-blue-700"
+                      >
+                        Change
+                      </label>
+                      {thumbnailFile && (
+                        <button
+                          type="button"
+                          onClick={handleRemoveThumbnail}
+                          className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
+                        >
+                          Revert
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleThumbnailChange}
+                      className="hidden"
+                      id="thumbnail-upload"
+                    />
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleThumbnailChange}
+                      className="hidden"
+                      id="thumbnail-upload"
+                    />
+                    <label htmlFor="thumbnail-upload" className="cursor-pointer">
+                      <span className="text-primary-600 hover:text-primary-700 font-medium">
+                        Choose thumbnail
+                      </span>
+                    </label>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Recommended for better presentation
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Tags Section */}
+            {currentMaterial?.id && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <TagSelector
+                  objectType="Material"
+                  objectId={currentMaterial.id}
+                />
               </div>
             )}
 
@@ -445,55 +548,38 @@ const EditMaterial = () => {
               >
                 Cancel
               </button>
-              <div className="space-x-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to delete this material? This action cannot be undone.')) {
-                      handleDelete()
-                    }
-                  }}
-                  className="px-6 py-3 border border-red-300 text-red-700 rounded-md hover:bg-red-50 transition-colors"
-                >
-                  Delete
-                </button>
-                <button
-                  type="submit"
-                  disabled={uploading}
-                  className="bg-primary-500 text-white px-6 py-3 rounded-md hover:bg-primary-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center"
-                >
-                  {uploading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Updating...
-                    </>
-                  ) : (
-                    'Update Material'
-                  )}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={uploading}
+                className="bg-primary-500 text-white px-6 py-3 rounded-md hover:bg-primary-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update Material'
+                )}
+              </button>
             </div>
           </form>
         </div>
       </div>
+
+      {/* Video Upload Modal */}
+      <VideoUploadModal
+        isOpen={isVideoModalOpen}
+        onClose={() => setIsVideoModalOpen(false)}
+        onSave={handleVideoSave}
+        currentVideo={videoUrl}
+        objectType="CoachMaterial"
+        objectId={id}
+        title="Edit Course Video"
+        maxSizeMB={500}
+      />
     </div>
   )
-
-  async function handleDelete() {
-    if (!window.confirm('Are you sure you want to delete this material? This action cannot be undone.')) {
-      return
-    }
-
-    try {
-      setUploading(true)
-      await materialApi.deleteMaterial(id)
-      alert('Material deleted successfully!')
-      navigate('/coach/dashboard')
-    } catch (error) {
-      alert('Failed to delete material: ' + error.message)
-      setUploading(false)
-    }
-  }
 }
 
 export default EditMaterial

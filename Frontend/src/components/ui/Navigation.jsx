@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, LogOut, BookOpen, HomeIcon, School2Icon, User, Bell } from 'lucide-react';
+import { Menu, X, LogOut, BookOpen, HomeIcon, School2Icon, User, Bell, FileText } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { getAssetUrl } from '../../services/api';
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -22,6 +23,7 @@ const Navigation = () => {
   const navigation = [
     { name: 'Home', href: '/', icon: School2Icon },
     { name: 'Marketplace', href: '/marketplace', icon: BookOpen },
+    { name: 'Blog', href: '/blog', icon: FileText },
   ];
 
   const isActive = (path) => location.pathname === path;
@@ -115,6 +117,12 @@ const Navigation = () => {
     return user.role?.toLowerCase() || 'user';
   };
 
+  // Get user avatar URL
+  const getUserAvatarUrl = () => {
+    if (!user?.profileImageUrl) return null;
+    return getAssetUrl(user.profileImageUrl);
+  };
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -187,7 +195,20 @@ const Navigation = () => {
                     aria-expanded={showUserDropdown}
                     aria-haspopup="true"
                   >
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                    {getUserAvatarUrl() ? (
+                      <img
+                        src={getUserAvatarUrl()}
+                        alt={getUserDisplayName()}
+                        className="w-8 h-8 rounded-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className={`w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full items-center justify-center text-white text-sm font-medium ${getUserAvatarUrl() ? 'hidden' : 'flex'}`}
+                    >
                       {getUserInitials()}
                     </div>
                     <div className="text-sm text-left">
@@ -290,7 +311,20 @@ const Navigation = () => {
               <>
                 <div className="px-4 py-3 border-t border-gray-200">
                   <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium">
+                    {getUserAvatarUrl() ? (
+                      <img
+                        src={getUserAvatarUrl()}
+                        alt={getUserDisplayName()}
+                        className="w-10 h-10 rounded-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className={`w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full items-center justify-center text-white font-medium ${getUserAvatarUrl() ? 'hidden' : 'flex'}`}
+                    >
                       {getUserInitials()}
                     </div>
                     <div>

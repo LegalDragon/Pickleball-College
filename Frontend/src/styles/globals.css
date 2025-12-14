@@ -343,6 +343,86 @@ a:hover {
   grid-template-columns: repeat(4, 1fr);
 }
 
+/* Header/Hero Section */
+.header {
+  padding: 6rem 0;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.header-content {
+  position: relative;
+  z-index: 1;
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.header h1 {
+  font-size: 3.5rem;
+  color: white;
+  margin-bottom: 1.5rem;
+}
+
+.header .subtitle {
+  font-size: 1.25rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 2rem;
+}
+
+.header .btn-group {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .header h1 {
+    font-size: 2.5rem;
+  }
+
+  .header .subtitle {
+    font-size: 1rem;
+  }
+}
+
+/* CTA Section */
+.cta {
+  padding: 5rem 0;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.cta h2 {
+  font-size: 2.5rem;
+  color: white;
+  margin-bottom: 1rem;
+}
+
+.cta p {
+  font-size: 1.125rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 2rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.cta .btn {
+  background: white;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.cta .btn:hover {
+  background: var(--gray-100);
+  transform: translateY(-2px);
+}
+
 /* Hero Section */
 .hero {
   padding: 6rem 0;
@@ -383,6 +463,49 @@ a:hover {
   margin-bottom: 2rem;
 }
 
+/* Features Section */
+.features {
+  padding: 5rem 0;
+  background: var(--gray-100);
+}
+
+.features .section-title {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.features .section-title h2 {
+  margin-bottom: 0.5rem;
+}
+
+.features .section-title p {
+  color: var(--gray-600);
+  font-size: 1.125rem;
+}
+
+/* Features Grid - Horizontal on desktop, stacked on mobile */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+@media (max-width: 1024px) {
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .features {
+    padding: 3rem 0;
+  }
+}
+
 /* Feature Cards */
 .feature-card {
   background: var(--light);
@@ -417,6 +540,30 @@ a:hover {
   padding: 4rem 0;
 }
 
+/* Stats Container - Horizontal on desktop, stacked on mobile */
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+}
+
+@media (max-width: 1024px) {
+  .stats-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat-item {
+  text-align: center;
+  padding: 1.5rem;
+}
+
 .stat-card {
   text-align: center;
   padding: 2rem;
@@ -435,6 +582,14 @@ a:hover {
 .stat-label {
   color: var(--gray-600);
   font-weight: 500;
+}
+
+.stat-item .rating {
+  margin-top: 0.5rem;
+}
+
+.stat-item .stars {
+  color: #fbbf24;
 }
 
 /* Testimonial */
