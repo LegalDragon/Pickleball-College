@@ -503,4 +503,50 @@ export const coachApi = {
     })
 }
 
+// Blog API
+export const blogApi = {
+  // Get all published blog posts (public)
+  getPosts: (page = 1, pageSize = 10, category = null) => {
+    const params = new URLSearchParams({ page, pageSize });
+    if (category) params.append('category', category);
+    return api.get(`/blog?${params.toString()}`);
+  },
+
+  // Get all categories
+  getCategories: () =>
+    api.get('/blog/categories'),
+
+  // Get blog post by slug
+  getPostBySlug: (slug) =>
+    api.get(`/blog/slug/${slug}`),
+
+  // Get blog post by ID
+  getPostById: (id) =>
+    api.get(`/blog/${id}`),
+
+  // Get posts by coach (public - only published)
+  getCoachPosts: (coachId) =>
+    api.get(`/blog/coach/${coachId}`),
+
+  // Get current coach's posts (including drafts)
+  getMyPosts: () =>
+    api.get('/blog/my-posts'),
+
+  // Create a new blog post
+  createPost: (data) =>
+    api.post('/blog', data),
+
+  // Update a blog post
+  updatePost: (id, data) =>
+    api.put(`/blog/${id}`, data),
+
+  // Delete a blog post
+  deletePost: (id) =>
+    api.delete(`/blog/${id}`),
+
+  // Toggle publish status
+  togglePublish: (id) =>
+    api.post(`/blog/${id}/toggle-publish`)
+}
+
 export default api

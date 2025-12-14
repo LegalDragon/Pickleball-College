@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Pickleball.College.Models.Entities;
+using Pickleball.College.API.Models.Entities;
 
 namespace Pickleball.College.Database;
 
@@ -38,6 +39,9 @@ public class ApplicationDbContext : DbContext
 
     // Video Review Requests
     public DbSet<VideoReviewRequest> VideoReviewRequests { get; set; }
+
+    // Blog Posts
+    public DbSet<BlogPost> BlogPosts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -306,6 +310,24 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(v => v.Status);
             entity.HasIndex(v => v.StudentId);
             entity.HasIndex(v => v.CoachId);
+        });
+
+        // BlogPost configuration
+        modelBuilder.Entity<BlogPost>(entity =>
+        {
+            entity.HasOne(b => b.Author)
+                  .WithMany()
+                  .HasForeignKey(b => b.AuthorId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(b => b.Title).IsRequired().HasMaxLength(200);
+            entity.Property(b => b.Slug).IsRequired().HasMaxLength(500);
+            entity.Property(b => b.Content).IsRequired();
+
+            entity.HasIndex(b => b.Slug).IsUnique();
+            entity.HasIndex(b => b.AuthorId);
+            entity.HasIndex(b => b.IsPublished);
+            entity.HasIndex(b => b.PublishedAt);
         });
     }
 }

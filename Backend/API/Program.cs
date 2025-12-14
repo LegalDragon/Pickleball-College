@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Pickleball.College.Database;
 using Pickleball.College.Services;
+using Pickleball.College.API.Services;
 using Pickleball.College.Models.Entities;
 using Pickleball.College.Models.Configuration;
 
@@ -50,6 +51,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IRatingService, RatingService>();
 builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<IVideoReviewService, VideoReviewService>();
+builder.Services.AddScoped<IBlogService, BlogService>();
 
 // CORS - Load allowed origins from configuration
 var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();

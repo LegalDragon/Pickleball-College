@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { materialApi, sessionApi, courseApi, videoReviewApi, getAssetUrl } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Users, DollarSign, Video, Calendar, RefreshCw, AlertCircle, Eye, Edit2, BookOpen, Clock, Check, X, MapPin, Link as LinkIcon, Loader2, Play, MessageSquare } from 'lucide-react'
+import { Plus, Users, DollarSign, Video, Calendar, RefreshCw, AlertCircle, Eye, Edit2, BookOpen, Clock, Check, X, MapPin, Link as LinkIcon, Loader2, Play, MessageSquare, FileText } from 'lucide-react'
 
 const CoachDashboard = () => {
   const [materials, setMaterials] = useState([])
@@ -612,6 +612,41 @@ const CoachDashboard = () => {
                   </Link>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Blog Management - Full Width Quick Access */}
+        <div className="mt-8 bg-white rounded-lg shadow">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-gray-900">Blog Posts</h2>
+              <Link
+                to="/coach/blog"
+                className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+              >
+                Manage All Posts →
+              </Link>
+            </div>
+          </div>
+          <div className="px-6 py-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-gray-900 font-medium">Share your expertise with blog posts</p>
+                  <p className="text-sm text-gray-500">Write tips, strategies, and insights for your students</p>
+                </div>
+              </div>
+              <Link
+                to="/coach/blog/new"
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              >
+                <Plus className="w-4 h-4" />
+                Write New Post
+              </Link>
             </div>
           </div>
         </div>
